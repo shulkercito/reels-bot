@@ -74,12 +74,24 @@ def render(images: list, durations: list, voice: str, ass: str, out_mp4: str, wo
     concat_list = f"{work}/clips.txt"
     with open(concat_list, "w") as f:
         f.writelines(f"file '{os.path.abspath(c)}'\n" for c in clips)
+    finish(["-f", "concat", "-safe", "0", "-i", concat_list], voice, ass, out_mp4)
 
+
+def render_animated(scenes: list, durations: list, voice: str, ass: str, out_mp4: str, work: str):
+    """Animación por código (monigotes que se mueven), sin imágenes de IA."""
+    from src import anim
+    silent = f"{work}/anim.mp4"
+    anim.render_silent(scenes, durations, silent)
+    finish(["-i", silent], voice, ass, out_mp4)
+
+
+def finish(video_input: list, voice: str, ass: str, out_mp4: str):
+    """Añade voz, música y subtítulos al vídeo."""
     music = sorted(glob.glob(f"{config.MUSIC_DIR}/*.mp3"))
     total = audio_duration(voice)
     ass_esc = os.path.abspath(ass).replace("\\", "/").replace(":", "\\:")
 
-    cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", concat_list, "-i", voice]
+    cmd = ["ffmpeg", "-y", *video_input, "-i", voice]
     if music:
         cmd += ["-stream_loop", "-1", "-i", random.choice(music)]
         afilter = (

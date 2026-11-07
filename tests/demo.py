@@ -7,17 +7,20 @@ import config
 
 DEMO_SCRIPT = {
     "category": "demo",
+    "style": "animado",
     "topic": "el pulpo y sus tres corazones",
     "title": "El animal con tres corazones",
     "caption": "Este animal tiene tres corazones y sangre azul. ¿Lo sabías?",
     "hashtags": ["#curiosidades", "#animales", "#sabiasque"],
     "scenes": [
-        {"text": "Existe un animal con tres corazones y sangre azul.", "image_prompt": "octopus"},
-        {"text": "Y probablemente lo has comido alguna vez.", "image_prompt": "plate"},
-        {"text": "Es el pulpo. Dos corazones bombean sangre a las branquias,", "image_prompt": "gills"},
-        {"text": "y el tercero al resto del cuerpo.", "image_prompt": "heart"},
-        {"text": "Su sangre es azul por la hemocianina, una proteína con cobre.", "image_prompt": "blue"},
-        {"text": "¿Sabías esto? Te leo en comentarios.", "image_prompt": "end"},
+        {"text": "Existe un animal con tres corazones.", "action": "shocked", "keyword": "¡3 CORAZONES!", "bg": "azul"},
+        {"text": "Y probablemente lo has comido alguna vez.", "action": "laugh", "second": "shocked", "bg": "amarillo"},
+        {"text": "Es el pulpo.", "action": "point", "keyword": "EL PULPO", "bg": "verde", "creature": "octopus"},
+        {"text": "Dos corazones bombean sangre a las branquias,", "action": "talk", "bg": "rosa", "creature": "octopus", "xray": True},
+        {"text": "y el tercero al resto del cuerpo.", "action": "point", "keyword": "+1", "bg": "naranja", "creature": "octopus", "xray": True},
+        {"text": "¿Y su sangre?", "action": "think", "props": ["question"], "second": "shrug", "bg": "morado"},
+        {"text": "Es azul, por una proteína con cobre.", "action": "shocked", "props": ["drop"], "keyword": "SANGRE AZUL", "bg": "azul", "creature": "octopus", "xray": True},
+        {"text": "¿Lo sabías? Te leo en comentarios.", "action": "celebrate", "props": ["star", "star"], "second": "wave", "bg": "amarillo"},
     ],
 }
 
@@ -46,6 +49,29 @@ def fake_tts(text: str, out_mp3: str) -> list:
         d = 0.18 + 0.045 * len(w)
         words.append({"word": w, "start": t, "end": t + d})
         t += d + 0.06
-    subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", f"sine=frequency=220:duration={t + 0.3:.2f}",
+    subprocess.run(["ffmpeg", "-y", "-f", "lavfi", "-i", f"anullsrc=r=48000:cl=mono", "-t", f"{t + 0.3:.2f}",
                     "-c:a", "libmp3lame", out_mp3], capture_output=True, check=True)
     return words
+
+
+def fake_stickers(scenes: list, work: str):
+    """Dibuja un pulpo cartoon sobre fondo blanco y lo pasa por el recorte real de pegatinas."""
+    from src import stickers
+    img = Image.new("RGB", (1024, 1024), (255, 255, 255))
+    d = ImageDraw.Draw(img)
+    purple, ink = (170, 90, 220), (25, 25, 30)
+    for k in range(8):  # tentáculos
+        x = 230 + k * 80
+        d.line([(x, 560), (x - 40 + (k % 2) * 80, 760), (x + (k % 3 - 1) * 50, 900)], fill=ink, width=70, joint="curve")
+        d.line([(x, 560), (x - 40 + (k % 2) * 80, 760), (x + (k % 3 - 1) * 50, 900)], fill=purple, width=50, joint="curve")
+    d.ellipse([250, 150, 780, 640], fill=purple, outline=ink, width=14)
+    for ex in (420, 610):
+        d.ellipse([ex - 55, 330, ex + 55, 450], fill="white", outline=ink, width=10)
+        d.ellipse([ex - 22, 370, ex + 22, 420], fill=ink)
+    d.arc([440, 430, 590, 540], 20, 160, fill=ink, width=12)
+    raw, png = f"{work}/subject_raw.jpg", f"{work}/subject_00.png"
+    img.save(raw, quality=92)
+    ok = stickers.cut_out(raw, png)
+    for sc in scenes:
+        if sc.get("subject"):
+            sc["_sticker"] = png if ok else None

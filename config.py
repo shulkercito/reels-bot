@@ -43,9 +43,12 @@ TARGET_WORDS = (110, 145)  # ~40-55 s de narración
 # --- Imágenes (Pollinations, gratis) -----------------------------------------
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "flux")
 POLLINATIONS_TOKEN = os.getenv("POLLINATIONS_TOKEN", "")  # opcional, da más cuota
-# Estilos visuales. VISUAL_STYLE = "mix" (alterna al azar), "pixar" o "monigotes".
-VISUAL_STYLE = os.getenv("VISUAL_STYLE", "monigotes")
+# Estilo visual:
+#   "animado"   -> monigotes animados por código (se mueven de verdad, sin imágenes de IA)  <- por defecto
+#   "monigotes" / "pixar" -> imágenes de IA con zoom;  "mix" -> alterna entre imágenes de IA
+VISUAL_STYLE = os.getenv("VISUAL_STYLE", "animado")
 VISUAL_STYLES = {
+    "animado": {"hint": "animación de monigotes", "suffix": ""},
     "pixar": {
         "hint": "personajes 3D tipo película de animación, muy expresivos y exagerados, caras grandes, colores vivos",
         "suffix": "3D animated movie style render, cute stylized cartoon characters, big expressive eyes, "

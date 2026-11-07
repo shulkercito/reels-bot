@@ -28,7 +28,7 @@ def chunk_words(words: list, max_words=3, max_chars=16) -> list:
     return chunks
 
 
-def build_ass(words: list, path: str):
+def build_ass(words: list, path: str, y_frac: float = 0.62):
     c = config
     header = f"""[Script Info]
 ScriptType: v4.00+
@@ -45,7 +45,7 @@ Style: Main,{c.FONT_NAME},{c.FONT_SIZE},&H00FFFFFF,&H00FFFFFF,&H00000000,&H96000
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
 """
     lines = []
-    y = int(c.HEIGHT * 0.62)
+    y = int(c.HEIGHT * y_frac)
     chunks = chunk_words(words)
     for ci, chunk in enumerate(chunks):
         chunk_end = chunks[ci + 1][0]["start"] if ci + 1 < len(chunks) else chunk[-1]["end"] + 0.4

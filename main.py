@@ -36,26 +36,41 @@ def make_video(script: dict, work: str, demo=False) -> str:
     narration = " ".join(s["text"].strip() for s in script["scenes"])
     voice = f"{work}/voice.mp3"
 
+    style = script.get("style", config.VISUAL_STYLE)
+    animated = style == "animado"
+
     if demo:
         from tests.demo import fake_tts, fake_images
         words = fake_tts(narration, voice)
-        images = fake_images(len(script["scenes"]), work)
+        images = None if animated else fake_images(len(script["scenes"]), work)
+        if animated:
+            from tests.demo import fake_stickers
+            fake_stickers(script["scenes"], work)
     else:
-        from src import images as img_mod, tts
+        from src import tts
         print("[voz] sintetizando…")
         words = tts.synthesize(narration, voice)
-        print("[imágenes] generando…")
-        images = img_mod.generate([s["image_prompt"] for s in script["scenes"]], work,
-                                  style=script.get("style", "pixar"))
+        images = None
+        if animated:
+            from src import stickers
+            stickers.attach(script["scenes"], work)
+        else:
+            from src import images as img_mod
+            print("[imágenes] generando…")
+            images = img_mod.generate([s["image_prompt"] for s in script["scenes"]], work, style=style)
 
     total = render.audio_duration(voice)
     durations = render.scene_timings(script["scenes"], words, total)
     ass = f"{work}/subs.ass"
-    subtitles.build_ass(words, ass)
+    # en la animación los subtítulos van abajo, debajo de los personajes
+    subtitles.build_ass(words, ass, y_frac=0.80 if animated else 0.62)
 
     out = f"{config.OUTPUT_DIR}/reel_{dt.datetime.now():%Y%m%d_%H%M}.mp4"
-    print(f"[montaje] {len(images)} escenas, {total:.1f} s…")
-    render.render(images, durations, voice, ass, out, work, style=script.get("style", "pixar"))
+    print(f"[montaje] {len(script['scenes'])} escenas, {total:.1f} s, estilo {style}…")
+    if animated:
+        render.render_animated(script["scenes"], durations, voice, ass, out, work)
+    else:
+        render.render(images, durations, voice, ass, out, work, style=style)
     return out
 
 
