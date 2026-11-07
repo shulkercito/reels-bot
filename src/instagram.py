@@ -13,11 +13,33 @@ def _check(r: requests.Response) -> dict:
     return data
 
 
+def _token() -> str:
+    # quita espacios, saltos de línea y comillas que se cuelan al pegar
+    return "".join(config.IG_ACCESS_TOKEN.split()).strip("\"'")
+
+
+def _api_base(token: str) -> str:
+    """Los tokens de Instagram (IG...) van a graph.instagram.com; los de Facebook (EAA...) a graph.facebook.com."""
+    version = config.IG_API.rstrip("/").split("/")[-1]
+    if token.startswith("EAA"):
+        return f"https://graph.facebook.com/{version}"
+    return config.IG_API
+
+
+def describe_token() -> str:
+    t = _token()
+    kind = "Facebook (EAA)" if t.startswith("EAA") else "Instagram (IG)" if t.startswith("IG") else "desconocido"
+    return f"token tipo {kind}, {len(t)} caracteres, empieza por '{t[:4]}', termina por '{t[-3:]}'"
+
+
 def refresh_token() -> str:
     """Alarga el token de larga duración otros 60 días. Devuelve el token nuevo."""
+    token = _token()
+    if token.startswith("EAA"):
+        raise RuntimeError("los tokens de Facebook no se renuevan así; se omite la renovación")
     r = requests.get(
         "https://graph.instagram.com/refresh_access_token",
-        params={"grant_type": "ig_refresh_token", "access_token": config.IG_ACCESS_TOKEN},
+        params={"grant_type": "ig_refresh_token", "access_token": token},
         timeout=30,
     )
     return _check(r)["access_token"]
@@ -27,7 +49,9 @@ def publish_reel(video_url: str, caption: str) -> str:
     """video_url tiene que ser un enlace público y directo al .mp4."""
     if not (config.IG_USER_ID and config.IG_ACCESS_TOKEN):
         raise RuntimeError("Faltan IG_USER_ID o IG_ACCESS_TOKEN")
-    base, token = config.IG_API, config.IG_ACCESS_TOKEN
+    token = _token()
+    base = _api_base(token)
+    print(f"[instagram] {describe_token()} -> {base}")
 
     container = _check(requests.post(
         f"{base}/{config.IG_USER_ID}/media",
