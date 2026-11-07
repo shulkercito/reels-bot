@@ -98,17 +98,35 @@ def main():
              "topic": script["topic"], "title": script["title"]}
 
     publish = not args.no_publish and not args.demo and os.getenv("PUBLISH", "false").lower() == "true"
+    errors = []
     if publish:
-        from src import hosting, instagram
-        url = hosting.upload(mp4, tag=f"reel-{dt.datetime.now():%Y%m%d-%H%M%S}")
-        print(f"[hosting] {url}")
-        entry["instagram_id"] = instagram.publish_reel(url, caption)
+        from src import youtube
+        # cada red va por separado: si una falla, la otra se publica igual
+        if os.getenv("IG_ACCESS_TOKEN"):
+            try:
+                from src import hosting, instagram
+                url = hosting.upload(mp4, tag=f"reel-{dt.datetime.now():%Y%m%d-%H%M%S}")
+                print(f"[hosting] {url}")
+                entry["instagram_id"] = instagram.publish_reel(url, caption)
+            except Exception as e:
+                errors.append(f"Instagram: {e}")
+                print(f"[instagram] ERROR: {e}")
+        if youtube.enabled():
+            try:
+                entry["youtube_id"] = youtube.upload_short(mp4, script["title"], caption, script.get("hashtags", []))
+            except Exception as e:
+                errors.append(f"YouTube: {e}")
+                print(f"[youtube] ERROR: {e}")
+        else:
+            print("[youtube] sin configurar (faltan YT_CLIENT_ID / YT_CLIENT_SECRET / YT_REFRESH_TOKEN)")
     else:
         print("[publicar] desactivado (PUBLISH!=true): el vídeo queda en output/")
 
     if not args.demo:
         history.append(entry)
         save_history(history)
+    if errors:  # la ejecución sale en rojo para que te enteres
+        raise RuntimeError(" | ".join(errors))
 
 
 if __name__ == "__main__":
