@@ -45,7 +45,8 @@ def make_video(script: dict, work: str, demo=False) -> str:
         print("[voz] sintetizando…")
         words = tts.synthesize(narration, voice)
         print("[imágenes] generando…")
-        images = img_mod.generate([s["image_prompt"] for s in script["scenes"]], work)
+        images = img_mod.generate([s["image_prompt"] for s in script["scenes"]], work,
+                                  style=script.get("style", "pixar"))
 
     total = render.audio_duration(voice)
     durations = render.scene_timings(script["scenes"], words, total)
@@ -54,7 +55,7 @@ def make_video(script: dict, work: str, demo=False) -> str:
 
     out = f"{config.OUTPUT_DIR}/reel_{dt.datetime.now():%Y%m%d_%H%M}.mp4"
     print(f"[montaje] {len(images)} escenas, {total:.1f} s…")
-    render.render(images, durations, voice, ass, out, work)
+    render.render(images, durations, voice, ass, out, work, style=script.get("style", "pixar"))
     return out
 
 
@@ -84,6 +85,7 @@ def main():
     print(f"[ok] vídeo: {mp4}")
 
     entry = {"date": dt.date.today().isoformat(), "category": script["category"],
+             "style": script.get("style"),
              "topic": script["topic"], "title": script["title"]}
 
     publish = not args.no_publish and not args.demo and os.getenv("PUBLISH", "false").lower() == "true"

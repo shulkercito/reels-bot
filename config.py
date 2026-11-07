@@ -43,10 +43,22 @@ TARGET_WORDS = (110, 145)  # ~40-55 s de narración
 # --- Imágenes (Pollinations, gratis) -----------------------------------------
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "flux")
 POLLINATIONS_TOKEN = os.getenv("POLLINATIONS_TOKEN", "")  # opcional, da más cuota
-IMAGE_STYLE = os.getenv(
-    "IMAGE_STYLE",
-    "cinematic, dramatic lighting, highly detailed, photorealistic, 35mm film, vertical composition",
-)
+# Estilos visuales. VISUAL_STYLE = "mix" (alterna al azar), "pixar" o "monigotes".
+VISUAL_STYLE = os.getenv("VISUAL_STYLE", "mix")
+VISUAL_STYLES = {
+    "pixar": {
+        "hint": "personajes 3D tipo película de animación, muy expresivos y exagerados, caras grandes, colores vivos",
+        "suffix": "3D animated movie style render, cute stylized cartoon characters, big expressive eyes, "
+                  "exaggerated facial expression, vibrant saturated colors, soft cinematic lighting, "
+                  "detailed background, no text, vertical composition",
+    },
+    "monigotes": {
+        "hint": "monigotes (stickmen) simples dibujados a mano, sobre fondo blanco limpio, con algún objeto clave",
+        "suffix": "simple hand-drawn stick figure cartoon, thick black marker lines, round head with simple "
+                  "expressive face, minimalist doodle, clean plain white background, one or two flat accent colors, "
+                  "funny explainer video style, no text, vertical composition",
+    },
+}
 
 # --- Vídeo -------------------------------------------------------------------
 WIDTH, HEIGHT, FPS = 1080, 1920, 30

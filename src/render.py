@@ -34,23 +34,30 @@ def scene_timings(scenes: list, words: list, total: float) -> list:
     return [max(e - s, 0.8) for s, e in zip(starts, ends)]
 
 
-def _scene_clip(img: str, dur: float, out: str, i: int):
+def _scene_clip(img: str, dur: float, out: str, i: int, flat: bool = False):
+    """Cada escena: 'golpe' de zoom al entrar, movimiento continuo y, a veces, sacudida."""
     W, H, fps = config.WIDTH, config.HEIGHT, config.FPS
     frames = max(int(round(dur * fps)), 1)
-    step = 0.18 / frames  # ~18 % de zoom a lo largo de la escena
-    style = i % 4
-    if style == 0:    # zoom in centrado
-        z, x, y = f"1+{step}*on", "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
-    elif style == 1:  # zoom out
-        z, x, y = f"1.18-{step}*on", "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
-    elif style == 2:  # zoom in hacia arriba
-        z, x, y = f"1+{step}*on", "iw/2-(iw/zoom/2)", "(ih-ih/zoom)*0.25"
-    else:             # paneo lateral
-        z, x, y = "1.15", f"(iw-iw/zoom)*on/{frames}", "ih/2-(ih/zoom/2)"
+    step = 0.14 / frames
+    punch = "0.14*exp(-on/4)"                     # entra grande y se asienta en ~0.3 s
+    bounce = "0.015*sin(on/3)"                    # respiración/rebote suave
+    shake = "if(lt(on,8),18*sin(on*2.7),0)" if i % 3 == 1 else "0"  # sacudida en 1 de cada 3
+    cx, cy = "iw/2-(iw/zoom/2)", "ih/2-(ih/zoom/2)"
+    move = i % 4
+    if move == 0:    # zoom in
+        z, x, y = f"1.04+{punch}+{step}*on+{bounce}", cx, cy
+    elif move == 1:  # zoom out
+        z, x, y = f"1.18+{punch}-{step}*on+{bounce}", cx, cy
+    elif move == 2:  # paneo izquierda -> derecha
+        z, x, y = f"1.16+{punch}+{bounce}", f"(iw-iw/zoom)*on/{frames}", cy
+    else:            # paneo abajo -> arriba
+        z, x, y = f"1.16+{punch}+{bounce}", cx, f"(ih-ih/zoom)*(1-on/{frames})"
+    x, y = f"{x}+{shake}", f"{y}+({shake})*0.6"
+    look = "eq=contrast=1.04:saturation=1.08" if flat else "eq=contrast=1.06:saturation=1.15,vignette=PI/6"
     vf = (
         f"scale={W * 2}:{H * 2}:force_original_aspect_ratio=increase,crop={W * 2}:{H * 2},"
         f"zoompan=z='{z}':x='{x}':y='{y}':d={frames}:s={W}x{H}:fps={fps},"
-        "eq=contrast=1.05:saturation=1.1,vignette=PI/5,format=yuv420p"
+        f"{look},fade=t=in:st=0:d=0.12:color=white,format=yuv420p"
     )
     _run([
         "ffmpeg", "-y", "-i", img, "-vf", vf, "-frames:v", str(frames),
@@ -58,11 +65,11 @@ def _scene_clip(img: str, dur: float, out: str, i: int):
     ])
 
 
-def render(images: list, durations: list, voice: str, ass: str, out_mp4: str, work: str):
+def render(images: list, durations: list, voice: str, ass: str, out_mp4: str, work: str, style: str = "pixar"):
     clips = []
     for i, (img, dur) in enumerate(zip(images, durations)):
         clip = f"{work}/clip_{i:02d}.mp4"
-        _scene_clip(img, dur, clip, i)
+        _scene_clip(img, dur, clip, i, flat=(style == "monigotes"))
         clips.append(clip)
     concat_list = f"{work}/clips.txt"
     with open(concat_list, "w") as f:

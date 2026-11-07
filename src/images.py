@@ -8,8 +8,8 @@ import requests
 import config
 
 
-def _download(prompt: str, path: str, seed: int) -> bool:
-    full = f"{prompt}, {config.IMAGE_STYLE}"
+def _download(prompt: str, path: str, seed: int, style: str) -> bool:
+    full = f"{prompt}, {config.VISUAL_STYLES[style]['suffix']}"
     url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(full)
     params = {
         "width": config.WIDTH, "height": config.HEIGHT, "model": config.IMAGE_MODEL,
@@ -25,14 +25,14 @@ def _download(prompt: str, path: str, seed: int) -> bool:
     return False
 
 
-def generate(prompts: list, out_dir: str) -> list:
+def generate(prompts: list, out_dir: str, style: str = "pixar") -> list:
     paths, ok_any = [], None
     for i, prompt in enumerate(prompts):
         path = f"{out_dir}/scene_{i:02d}.jpg"
         done = False
         for attempt in range(4):
             try:
-                if _download(prompt, path, random.randint(1, 10**6)):
+                if _download(prompt, path, random.randint(1, 10**6), style):
                     done = True
                     break
             except requests.RequestException as e:
