@@ -2,10 +2,13 @@
 import json
 import random
 import re
+import time
 
 import requests
 
 import config
+
+FALLBACK_GEMINI = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.1-flash-lite"]
 
 PROMPT = """Eres guionista de vídeos virales cortos (Reels/TikTok) de {category}.
 Escribe UN vídeo en idioma "{lang}" sobre un tema concreto y verídico dentro de esa categoría.
@@ -51,28 +54,45 @@ def generate(history: list) -> dict:
         category=category, lang=config.LANGUAGE, history=used,
         wmin=config.TARGET_WORDS[0], wmax=config.TARGET_WORDS[1],
     )
+    # Si un modelo está saturado (503/429) o no existe (404), prueba el siguiente.
+    models = [config.LLM_MODEL]
+    if config.LLM_PROVIDER == "gemini":
+        models += [m for m in FALLBACK_GEMINI if m != config.LLM_MODEL]
+
     last_err = None
-    for attempt in range(3):
-        r = requests.post(
-            f"{config.LLM_BASE_URL}/chat/completions",
-            headers={"Authorization": f"Bearer {config.LLM_API_KEY}"},
-            json={
-                "model": config.LLM_MODEL,
-                "messages": [{"role": "user", "content": prompt}],
-                "temperature": 1.0,
-                "response_format": {"type": "json_object"},
-            },
-            timeout=120,
-        )
-        try:
-            r.raise_for_status()
-            data = _extract_json(r.json()["choices"][0]["message"]["content"])
-            _validate(data)
-            data["category"] = category
-            return data
-        except Exception as e:  # reintenta si el JSON sale mal
-            last_err = e
-            print(f"[guion] intento {attempt + 1} falló: {e}")
+    for model in models:
+        for attempt in range(3):
+            try:
+                r = requests.post(
+                    f"{config.LLM_BASE_URL}/chat/completions",
+                    headers={"Authorization": f"Bearer {config.LLM_API_KEY}"},
+                    json={
+                        "model": model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "temperature": 1.0,
+                        "response_format": {"type": "json_object"},
+                    },
+                    timeout=180,
+                )
+                if r.status_code == 404:
+                    raise LookupError(f"modelo {model} no disponible")
+                if r.status_code in (429, 500, 502, 503, 504):
+                    raise ConnectionError(f"{r.status_code} servidor saturado: {r.text[:150]}")
+                r.raise_for_status()
+                data = _extract_json(r.json()["choices"][0]["message"]["content"])
+                _validate(data)
+                data["category"] = category
+                print(f"[guion] generado con {model}")
+                return data
+            except LookupError as e:
+                last_err = e
+                print(f"[guion] {e}, paso al siguiente modelo")
+                break
+            except Exception as e:
+                last_err = e
+                wait = 15 * (attempt + 1)
+                print(f"[guion] {model} intento {attempt + 1} falló: {e} — espero {wait}s")
+                time.sleep(wait)
     raise RuntimeError(f"No se pudo generar el guion: {last_err}")
 
 
