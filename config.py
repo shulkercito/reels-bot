@@ -31,7 +31,7 @@ CATEGORIES = [
 # groq   -> clave gratis en https://console.groq.com/keys
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini")
 LLM_PRESETS = {
-    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-2.5-flash"),
+    "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai", "gemini-3.8-flash"),
     "groq": ("https://api.groq.com/openai/v1", "llama-3.3-70b-versatile"),
 }
 LLM_BASE_URL = os.getenv("LLM_BASE_URL", LLM_PRESETS[LLM_PROVIDER][0])
