@@ -1,0 +1,5 @@
+Mete aquí 3-5 pistas .mp3 sin copyright (por ejemplo de la Biblioteca de audio de YouTube o Pixabay Music).
+El bot elige una al azar en cada vídeo y la pone bajita debajo de la voz.
+Sin archivos aquí, el vídeo sale solo con voz.
+
+Instagram silencia o limita vídeos con música con derechos: no metas canciones comerciales.
