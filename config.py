@@ -44,7 +44,7 @@ TARGET_WORDS = (110, 145)  # ~40-55 s de narración
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "flux")
 POLLINATIONS_TOKEN = os.getenv("POLLINATIONS_TOKEN", "")  # opcional, da más cuota
 # Estilos visuales. VISUAL_STYLE = "mix" (alterna al azar), "pixar" o "monigotes".
-VISUAL_STYLE = os.getenv("VISUAL_STYLE", "mix")
+VISUAL_STYLE = os.getenv("VISUAL_STYLE", "monigotes")
 VISUAL_STYLES = {
     "pixar": {
         "hint": "personajes 3D tipo película de animación, muy expresivos y exagerados, caras grandes, colores vivos",
