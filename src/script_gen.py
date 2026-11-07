@@ -47,15 +47,12 @@ ANIM_RULES = """- El vídeo es una ANIMACIÓN de monigotes. Para cada escena eli
     (human = cuerpo humano). Úsalo en todas las escenas donde encaje. "" si no aplica.
   * "xray": true cuando la escena explica lo que hay DENTRO de la criatura (órganos, corazón, huesos, capas
     de la Tierra, magma del volcán, cámaras de la pirámide...): se verá por dentro con efecto rayos X. Si no, false.
-  * "subject": SOLO si lo que se nombra NO está en el catálogo de "creature": la cosa concreta, descrita EN INGLÉS
-    en pocas palabras y con expresión si es un ser vivo (ej. "a cute octopus waving its tentacles",
-    "an erupting volcano", "an ancient egyptian pharaoh looking surprised", "a giant blue whale").
-    Úsalo en la mitad de las escenas o más, siempre que se nombre algo visual. Repite EXACTAMENTE el mismo
-    texto cuando vuelva a salir lo mismo (así se reutiliza el dibujo). Nunca famosos reales ni marcas. "" si no aplica.
+  * Si el tema NO está en el catálogo, no inventes criaturas: cuéntalo con los monigotes, el segundo monigote
+    y los "props" (objetos) que mejor lo representen.
 - Varía mucho las acciones: que no se repita la misma acción en dos escenas seguidas.
   Usa "shocked" en el gancho, "point" cuando se explica un objeto, "think" ante preguntas, "celebrate"/"laugh" en el final."""
 ANIM_SCHEMA = ('{{"text": "frase(s) de la narración", "action": "...", "props": ["..."], '
-               '"keyword": "...", "second": "...", "bg": "...", "creature": "...", "xray": false, "subject": "..."}}')
+               '"keyword": "...", "second": "...", "bg": "...", "creature": "...", "xray": false}}')
 
 
 def _extract_json(text: str) -> dict:
@@ -174,7 +171,7 @@ def _clean_anim(scenes: list):
         sec = str(s.get("second") or "").lower()
         s["second"] = sec if sec in anim.ACTIONS and sec not in ("walk", "run") else ""
         s["keyword"] = str(s.get("keyword") or "").upper()[:22]
-        s["subject"] = str(s.get("subject") or "").strip()[:100]
+        s["subject"] = ""  # sin dibujos de IA: solo monigotes, objetos y criaturas animadas
         from src import creatures
         cr = str(s.get("creature") or "").lower().strip()
         s["creature"] = cr if cr in creatures.CREATURES else ""

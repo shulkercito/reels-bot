@@ -43,18 +43,12 @@ def make_video(script: dict, work: str, demo=False) -> str:
         from tests.demo import fake_tts, fake_images
         words = fake_tts(narration, voice)
         images = None if animated else fake_images(len(script["scenes"]), work)
-        if animated:
-            from tests.demo import fake_stickers
-            fake_stickers(script["scenes"], work)
     else:
         from src import tts
         print("[voz] sintetizando…")
         words = tts.synthesize(narration, voice)
         images = None
-        if animated:
-            from src import stickers
-            stickers.attach(script["scenes"], work)
-        else:
+        if not animated:
             from src import images as img_mod
             print("[imágenes] generando…")
             images = img_mod.generate([s["image_prompt"] for s in script["scenes"]], work, style=style)
