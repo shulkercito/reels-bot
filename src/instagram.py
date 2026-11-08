@@ -1,4 +1,5 @@
 """Publica el vídeo como Reel con la API oficial de Instagram (cuenta profesional)."""
+import os
 import time
 
 import requests
@@ -60,7 +61,43 @@ def publish_reel(video_url: str, caption: str) -> str:
         timeout=60,
     ))["id"]
     print(f"[instagram] contenedor {container} creado, esperando procesado…")
+    return _wait_and_publish(base, token, container)
 
+
+def publish_reel_file(mp4: str, caption: str) -> str:
+    """Sube el archivo directamente a Meta (sin enlaces). Requiere token de Facebook (EAA...)."""
+    if not (config.IG_USER_ID and config.IG_ACCESS_TOKEN):
+        raise RuntimeError("Faltan IG_USER_ID o IG_ACCESS_TOKEN")
+    token = _token()
+    if not token.startswith("EAA"):
+        raise RuntimeError("la subida directa solo funciona con tokens de Facebook (EAA)")
+    base = _api_base(token)
+    version = base.rstrip("/").split("/")[-1]
+    print(f"[instagram] {describe_token()} -> subida directa del archivo")
+    created = _check(requests.post(
+        f"{base}/{config.IG_USER_ID}/media",
+        params={"upload_type": "resumable"},
+        headers={"Authorization": f"Bearer {token}"},
+        json={"media_type": "REELS", "caption": caption, "share_to_feed": True},
+        timeout=60,
+    ))
+    container = created["id"]
+    upload_uri = created.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{version}/{container}"
+    size = os.path.getsize(mp4)
+    with open(mp4, "rb") as f:
+        up = requests.post(upload_uri, data=f, timeout=600, headers={
+            "Authorization": f"OAuth {token}", "offset": "0", "file_size": str(size)})
+    try:
+        body = up.json()
+    except ValueError:
+        body = {"raw": up.text[:300]}
+    if up.status_code != 200 or not body.get("success"):
+        raise RuntimeError(f"subida directa falló ({up.status_code}): {body}")
+    print(f"[instagram] archivo subido ({size // 1024} KB), contenedor {container}, esperando procesado…")
+    return _wait_and_publish(base, token, container)
+
+
+def _wait_and_publish(base: str, token: str, container: str) -> str:
     for _ in range(60):  # hasta ~10 min
         status = _check(requests.get(
             f"{base}/{container}", params={"fields": "status_code,status", "access_token": token}, timeout=30,

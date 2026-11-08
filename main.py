@@ -106,21 +106,23 @@ def main():
         if os.getenv("IG_ACCESS_TOKEN"):
             from src import hosting, instagram
             tag = f"reel-{dt.datetime.now():%Y%m%d-%H%M%S}"
-            first = os.getenv("VIDEO_HOST", "github")
-            hosts = [first] + [h for h in ("github", "catbox") if h != first]
+            # 1º subida directa del archivo a Meta; si no se puede, por enlace (GitHub)
+            attempts = [("directa", None), ("directa", None), ("github", 0)]
             last_err = None
-            # si Instagram no procesa el vídeo, se reintenta desde otro servidor de descarga
-            for n, host in enumerate(hosts * 2 if len(hosts) == 1 else hosts + [first]):
+            for n, (how, _) in enumerate(attempts):
                 try:
-                    url = hosting.via_catbox(mp4) if host == "catbox" else hosting.via_github_release(mp4, f"{tag}-{n}")
-                    print(f"[hosting] ({host}) {url}")
-                    entry["instagram_id"] = instagram.publish_reel(url, caption)
+                    if how == "directa":
+                        entry["instagram_id"] = instagram.publish_reel_file(mp4, caption)
+                    else:
+                        url = hosting.via_github_release(mp4, f"{tag}-{n}")
+                        print(f"[hosting] {url}")
+                        entry["instagram_id"] = instagram.publish_reel(url, caption)
                     last_err = None
                     break
                 except Exception as e:
                     last_err = e
-                    print(f"[instagram] intento {n + 1} ({host}) falló: {e}")
-                    time.sleep(30)
+                    print(f"[instagram] intento {n + 1} ({how}) falló: {e}")
+                    time.sleep(20)
             if last_err:
                 errors.append(f"Instagram: {last_err}")
                 print(f"[instagram] ERROR: {last_err}")
