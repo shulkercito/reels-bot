@@ -57,7 +57,7 @@ def make_video(script: dict, work: str, demo=False) -> str:
     durations = render.scene_timings(script["scenes"], words, total)
     ass = f"{work}/subs.ass"
     # en la animación los subtítulos van abajo, debajo de los personajes
-    subtitles.build_ass(words, ass, y_frac=0.80 if animated else 0.62)
+    subtitles.build_ass(words, ass, y_frac=0.745 if animated else 0.62)
 
     out = f"{config.OUTPUT_DIR}/reel_{dt.datetime.now():%Y%m%d_%H%M}.mp4"
     print(f"[montaje] {len(script['scenes'])} escenas, {total:.1f} s, estilo {style}…")

@@ -821,6 +821,32 @@ CREATURES = {
 }
 
 
+# partes de cada criatura (coordenadas locales) desde donde sale la lupa del zoom
+PARTS = {
+    "human": {"brain": (0, -590), "heart": (18, -345), "lungs": (-62, -370), "stomach": (30, -255),
+              "intestines": (0, -200), "eye": (-35, -595), "body": (0, -350)},
+    "octopus": {"hearts": (0, -440), "heart": (0, -440), "brain": (0, -560), "tentacles": (60, -120), "body": (0, -430)},
+    "fish": {"heart": (-120, -270), "body": (0, -330), "gills": (-150, -320)},
+    "whale": {"heart": (0, -340), "lungs": (-60, -410), "body": (0, -330)},
+    "shark": {"heart": (-120, -290), "teeth": (-230, -300), "body": (0, -330)},
+    "earth": {"core": (0, -330), "surface": (100, -480), "body": (0, -330)},
+    "volcano": {"magma": (0, -90), "crater": (0, -480), "body": (0, -250)},
+    "pyramid": {"chamber": (105, -330), "tunnel": (20, -200), "body": (0, -250)},
+    "bird": {"heart": (-20, -320), "wing": (120, -420), "body": (0, -340)},
+    "cat": {"heart": (-30, -250), "brain": (-20, -480), "body": (0, -250)},
+    "dinosaur": {"heart": (20, -330), "teeth": (-200, -540), "body": (40, -340)},
+}
+
+
+def part_point(name, part, t, cx, base, scale):
+    """Posición en pantalla de una parte de la criatura (para el cono de la lupa)."""
+    cr = CREATURES[name]
+    pts = PARTS.get(name, {})
+    x, y = pts.get(part) or pts.get("body") or (0, -300)
+    bob = -18 * math.sin(t * 2.2) - 40 if cr.float_ else 0
+    return cx + x * scale, base + bob + y * scale
+
+
 def draw_creature(ctx, name, t, cx, base, scale, xray_t=None, shake=0.0):
     """Dibuja la criatura; si xray_t no es None, a partir de ese segundo se ve por dentro."""
     cr = CREATURES[name]

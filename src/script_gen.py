@@ -47,12 +47,26 @@ ANIM_RULES = """- El vídeo es una ANIMACIÓN de monigotes. Para cada escena eli
     (human = cuerpo humano). Úsalo en todas las escenas donde encaje. "" si no aplica.
   * "xray": true cuando la escena explica lo que hay DENTRO de la criatura (órganos, corazón, huesos, capas
     de la Tierra, magma del volcán, cámaras de la pirámide...): se verá por dentro con efecto rayos X. Si no, false.
+  * "zoom": MUY IMPORTANTE para que el vídeo explique de verdad. Cuando la escena cuente CÓMO FUNCIONA algo o QUÉ
+    PASA por dentro, aparece una lupa que muestra ese proceso animado. Formato:
+    {{"of": parte de la criatura de donde sale la lupa ({parts}) o "", "items": 1 a 4 elementos}}
+    cada elemento: {{"kind": tipo, "label": "NOMBRE CORTO EN ESPAÑOL", "do": qué hace, "color": opcional ({colors})}}
+    tipos y lo que pueden hacer: {kinds}
+    Ejemplo (el cerebro se limpia al dormir): {{"of": "brain", "items": [{{"kind": "cells", "label": "NEURONAS", "do": "shrink"}},
+    {{"kind": "fluid", "label": "LÍQUIDO", "do": "flow"}}, {{"kind": "particles", "label": "RESIDUOS", "do": "exit"}}]}}
+    Ejemplo (fisión nuclear): {{"of": "", "items": [{{"kind": "atoms", "label": "URANIO", "do": "split"}}]}}
+    Ejemplo (las defensas atacan un virus): {{"of": "", "items": [{{"kind": "blood", "label": "SANGRE", "do": "flow"}}, {{"kind": "virus", "label": "VIRUS", "do": "die"}}]}}
+    Úsalo en 2-4 escenas (las que explican el mecanismo). Con zoom, la criatura puede ir en rayos X ("xray": true). null si no.
+  * "chart": cuando la escena da CIFRAS, una gráfica animada (nunca en la misma escena que "zoom"):
+    comparación -> {{"type": "bars", "title": "...", "unit": "kg", "items": [{{"label": "Humano", "value": 1.4}}, {{"label": "Elefante", "value": 4.8}}]}}
+    un número impactante -> {{"type": "counter", "to": 86000000000, "prefix": "", "suffix": "", "title": "neuronas en tu cerebro"}}
+    Solo cifras reales; values como números. Úsalo en 1-2 escenas si hay datos. null si no.
   * Si el tema NO está en el catálogo, no inventes criaturas: cuéntalo con los monigotes, el segundo monigote
     y los "props" (objetos) que mejor lo representen.
 - Varía mucho las acciones: que no se repita la misma acción en dos escenas seguidas.
   Usa "shocked" en el gancho, "point" cuando se explica un objeto, "think" ante preguntas, "celebrate"/"laugh" en el final."""
 ANIM_SCHEMA = ('{{"text": "frase(s) de la narración", "action": "...", "props": ["..."], '
-               '"keyword": "...", "second": "...", "bg": "...", "creature": "...", "xray": false}}')
+               '"keyword": "...", "second": "...", "bg": "...", "creature": "...", "xray": false, "zoom": null, "chart": null}}')
 
 
 def _extract_json(text: str) -> dict:
@@ -86,9 +100,12 @@ def generate(history: list) -> dict:
     used = ", ".join(h["topic"] for h in history[-80:]) or "ninguno"
     if style == "animado":
         from src import anim
-        from src import creatures
+        from src import creatures, explain
+        parts = sorted({p for d in creatures.PARTS.values() for p in d})
+        kinds = "; ".join(f"{k} ({'/'.join(v)})" for k, v in explain.DOS.items())
         rules = ANIM_RULES.format(actions=", ".join(anim.ACTIONS), props=", ".join(anim.PROPS),
-                                  bgs=", ".join(anim.BACKGROUNDS), creatures=", ".join(creatures.CREATURES))
+                                  bgs=", ".join(anim.BACKGROUNDS), creatures=", ".join(creatures.CREATURES),
+                                  parts=", ".join(parts), kinds=kinds, colors=", ".join(explain.COLORS))
         schema = ANIM_SCHEMA
     else:
         rules = IMAGE_RULES.format(style_hint=config.VISUAL_STYLES[style]["hint"])
@@ -178,5 +195,8 @@ def _clean_anim(scenes: list):
         s["xray"] = bool(s.get("xray")) and bool(s["creature"])
         if s["creature"]:
             s["subject"] = ""  # la criatura animada manda; no hace falta dibujo de IA
+        from src import explain
+        s["zoom"] = explain.clean_zoom(s.get("zoom"))
+        s["chart"] = None if s["zoom"] else explain.clean_chart(s.get("chart"))
         if s.get("bg") not in anim.BACKGROUNDS or (i and s["bg"] == scenes[i - 1]["bg"]):
             s["bg"] = bgs[i % len(bgs)]

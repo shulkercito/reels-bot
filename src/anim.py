@@ -582,20 +582,31 @@ def draw_scene(ctx, sc, t, dur, idx):
     shirt = SHIRTS[sc.get("shirt", idx) % len(SHIRTS)]
     pop = 0.8 + 0.2 * ease_out_back(t / 0.3)  # pequeño "boing" al entrar
 
-    from src import creatures
+    from src import creatures, explain
     creature = sc.get("creature") if sc.get("creature") in creatures.CREATURES else None
     sticker = None if creature else _load_sticker(sc.get("_sticker"))
+    zoom = sc.get("zoom") if isinstance(sc.get("zoom"), dict) and sc["zoom"].get("items") else None
+    chart = sc.get("chart") if isinstance(sc.get("chart"), dict) and sc["chart"].get("type") else None
+    nscale = 1.15
+    cr_x, cr_scale = 770, 0.85
+    if zoom or chart:
+        second, props = "", []
+        cr_x, cr_scale = 860, 0.6
     if creature:  # criatura animada por código (con rayos X opcional) en el lado derecho
         second = ""
         props = props[:1]
-        creatures.draw_creature(ctx, creature, t, 770, FEET, 0.85,
-                                xray_t=0.6 if sc.get("xray") else None, shake=shake)
+        creatures.draw_creature(ctx, creature, t + (2.0 if sc.get("_cont") else 0.0), cr_x, FEET, cr_scale,
+                                xray_t=0.3 if sc.get("xray") else None, shake=shake)
     elif sticker is not None:  # dibujo de IA para temas que no están en el catálogo
         second = ""
         props = props[:1]
         _draw_sticker(ctx, sticker, t, shake)
 
-    if creature or sticker is not None:
+    if chart:
+        mx, facing, nscale = 110, 1, 0.75
+    elif zoom:
+        mx, facing, nscale = 170, 1, 1.0
+    elif creature or sticker is not None:
         mx, facing = 290, 1
     elif second:
         mx, facing = 300, 1
@@ -603,7 +614,7 @@ def draw_scene(ctx, sc, t, dur, idx):
         mx, facing = 330, 1
     else:
         mx, facing = 540, 1 if idx % 2 == 0 else -1
-    if action in ("walk", "run"):
+    if action in ("walk", "run") and not (zoom or chart):
         speed = 220 if action == "walk" else 420
         mx = (-160 + speed * t) if not props else min(-160 + speed * t, mx)
         facing = 1
@@ -630,8 +641,16 @@ def draw_scene(ctx, sc, t, dur, idx):
     ctx.translate(mx, FEET)
     ctx.scale(pop, pop)
     ctx.translate(-mx, -FEET)
-    draw_character(ctx, mx, FEET, 1.15, pose, expr, shirt, facing, t, True, idx * 1.7)
+    draw_character(ctx, mx, FEET, nscale, pose, expr, shirt, facing, t, True, idx * 1.7)
     ctx.restore()
+    if zoom:  # lupa que muestra el proceso por dentro
+        anchor = None
+        if creature:
+            anchor = creatures.part_point(creature, zoom.get("of", ""), t, cr_x, FEET, cr_scale)
+        explain.draw_zoom(ctx, zoom, t, (550, 810), 250, anchor=anchor, xray=bool(sc.get("xray")), seed=idx + 1,
+                          cont=bool(sc.get("_cont")))
+    if chart:
+        explain.draw_chart(ctx, chart, t, (610, 800))
     if second:
         p2 = pose_for(second, t, idx + 3.3)
         e2 = DEFAULT_EXPR.get(second, "neutral")
@@ -645,7 +664,8 @@ def draw_scene(ctx, sc, t, dur, idx):
             ctx.restore()
     ctx.restore()
 
-    draw_keyword(ctx, sc.get("keyword", ""), t - 0.1)
+    if not (isinstance(sc.get("chart"), dict) and sc["chart"].get("type")):
+        draw_keyword(ctx, sc.get("keyword", ""), t - 0.1)
 
 
 _STICKERS = {}
@@ -693,11 +713,16 @@ def render_silent(scenes: list, durations: list, out_mp4: str):
         stdin=subprocess.PIPE,
     )
     TR = 0.2
+    # escenas seguidas con la misma criatura y lupa: continúan sin volver a aparecer desde cero
+    for i in range(1, len(scenes)):
+        a, b = scenes[i - 1], scenes[i]
+        za, zb = a.get("zoom") or {}, b.get("zoom") or {}
+        b["_cont"] = bool(zb and za and a.get("creature") == b.get("creature") and za.get("of") == zb.get("of"))
     for i, (sc, dur) in enumerate(zip(scenes, durations)):
         frames = max(int(round(dur * FPS)), 1)
         for f in range(frames):
             t = f / FPS
-            if i > 0 and t < TR:  # la escena anterior sale por la izquierda
+            if i > 0 and t < TR and not sc.get("_cont"):  # la escena anterior sale por la izquierda
                 k = ease_out(t / TR)
                 ctx.save()
                 ctx.translate(-W * k, 0)
