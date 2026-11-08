@@ -104,9 +104,11 @@ def finish(video_input: list, voice: str, ass: str, out_mp4: str):
         "-filter_complex", f"[0:v]subtitles='{ass_esc}'[vout];{afilter}",
         "-map", "[vout]", "-map", "[a]",
         "-t", f"{total + 0.3:.2f}",
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-profile:v", "high",
+        # ajustes recomendados por Instagram para Reels: H.264 High, 30 fps, GOP 2 s, bitrate acotado, AAC estéreo 48 kHz
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "21", "-profile:v", "high", "-level", "4.1",
+        "-maxrate", "8M", "-bufsize", "16M", "-g", str(config.FPS * 2), "-keyint_min", str(config.FPS),
         "-pix_fmt", "yuv420p", "-r", str(config.FPS),
-        "-c:a", "aac", "-b:a", "192k", "-ar", "48000",
+        "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-ac", "2",
         "-movflags", "+faststart", out_mp4,
     ]
     _run(cmd)

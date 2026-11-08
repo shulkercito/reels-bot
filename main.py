@@ -10,6 +10,7 @@ import datetime as dt
 import json
 import os
 import sys
+import time
 
 import config
 from src import render, subtitles
@@ -103,14 +104,26 @@ def main():
         from src import youtube
         # cada red va por separado: si una falla, la otra se publica igual
         if os.getenv("IG_ACCESS_TOKEN"):
-            try:
-                from src import hosting, instagram
-                url = hosting.upload(mp4, tag=f"reel-{dt.datetime.now():%Y%m%d-%H%M%S}")
-                print(f"[hosting] {url}")
-                entry["instagram_id"] = instagram.publish_reel(url, caption)
-            except Exception as e:
-                errors.append(f"Instagram: {e}")
-                print(f"[instagram] ERROR: {e}")
+            from src import hosting, instagram
+            tag = f"reel-{dt.datetime.now():%Y%m%d-%H%M%S}"
+            first = os.getenv("VIDEO_HOST", "github")
+            hosts = [first] + [h for h in ("github", "catbox") if h != first]
+            last_err = None
+            # si Instagram no procesa el vídeo, se reintenta desde otro servidor de descarga
+            for n, host in enumerate(hosts * 2 if len(hosts) == 1 else hosts + [first]):
+                try:
+                    url = hosting.via_catbox(mp4) if host == "catbox" else hosting.via_github_release(mp4, f"{tag}-{n}")
+                    print(f"[hosting] ({host}) {url}")
+                    entry["instagram_id"] = instagram.publish_reel(url, caption)
+                    last_err = None
+                    break
+                except Exception as e:
+                    last_err = e
+                    print(f"[instagram] intento {n + 1} ({host}) falló: {e}")
+                    time.sleep(30)
+            if last_err:
+                errors.append(f"Instagram: {last_err}")
+                print(f"[instagram] ERROR: {last_err}")
         if youtube.enabled():
             try:
                 entry["youtube_id"] = youtube.upload_short(mp4, script["title"], caption, script.get("hashtags", []))
