@@ -12,18 +12,35 @@ VOICE_RATE = os.getenv("VOICE_RATE", "+8%")  # un pelín más rápido = más ret
 # --- Temas ("de todo") -------------------------------------------------------
 # Cada ejecución elige una categoría distinta a la última. Añade o quita las que quieras.
 CATEGORIES = [
-    "curiosidad científica sorprendente",
-    "historia real poco conocida",
+    # historias y gente
+    "historia real tan loca que parece inventada",
+    "personaje histórico con una vida de película",
+    "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)",
+    "anécdota increíble de un famoso",
+    "el origen sorprendente de una marca o empresa famosa",
+    "millonarios, dinero y fortunas absurdas",
+    # deporte y ocio
+    "fútbol: anécdotas, récords y momentos legendarios",
+    "deporte: historias épicas y récords imposibles",
+    "videojuegos: secretos y curiosidades",
+    "cine y series: secretos de rodaje y curiosidades",
+    "música: historias detrás de canciones y artistas",
+    # mundo y vida diaria
+    "costumbres y leyes rarísimas de otros países",
+    "lugares extraños, prohibidos o abandonados del planeta",
+    "comida: orígenes y curiosidades que no sabías",
+    "mitos que todo el mundo cree y son falsos",
+    "trucos y datos útiles para la vida diaria",
+    "psicología: por qué hacemos lo que hacemos",
+    "récords Guinness absurdos",
+    "inventos y accidentes que cambiaron el mundo",
     "misterio sin resolver",
+    "historia de Internet, memes y tecnología",
+    # naturaleza y ciencia (minoría a propósito)
     "dato increíble de animales",
     "el espacio y el universo",
-    "qué pasaría si... (hipotético explicado con ciencia)",
-    "inventos y accidentes que cambiaron el mundo",
     "cuerpo humano y cerebro",
-    "lugares extraños del planeta",
-    "personajes históricos con vidas de película",
-    "psicología y comportamiento humano",
-    "deporte: récords e historias legendarias",
+    "qué pasaría si... (hipotético)",
 ]
 
 # --- Guion (LLM gratis vía API compatible con OpenAI) ------------------------

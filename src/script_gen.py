@@ -15,7 +15,10 @@ Escribe UN vídeo en idioma "{lang}" sobre un tema concreto y verídico dentro d
 
 Reglas:
 - Primera frase = gancho brutal de menos de 12 palabras que obligue a quedarse (pregunta o afirmación chocante).
-- Narración total entre {wmin} y {wmax} palabras, frases cortas, tono de contar un secreto, sin emojis.
+- Narración total entre {wmin} y {wmax} palabras, frases cortas, sin emojis.
+- Tono ENTRETENIDO y cercano, como un colega contándote un cotilleo increíble: con giros, humor y sorpresa.
+  NO es una clase de ciencias: nada de tecnicismos ni explicaciones de libro si el tema no lo pide.
+  Si es una historia, cuéntala como una historia (personajes, qué pasó, giro final).
 - Solo hechos reales y comprobables; si hay incertidumbre, dilo ("se cree que...").
 - Termina con una frase que invite a comentar o seguir la cuenta, sin ser pesado.
 - Divide la narración en 10 a 14 escenas cortas (una frase o media frase cada una). El texto de las escenas, unido, es la narración completa.
@@ -65,7 +68,8 @@ ANIM_RULES = """- El vídeo es una ANIMACIÓN de monigotes. Para cada escena eli
     Casi todas las escenas deberían mostrar algo concreto de lo que se está contando.
   * "xray": true cuando la escena explica lo que hay DENTRO de la criatura (órganos, corazón, huesos, capas
     de la Tierra, magma del volcán, cámaras de la pirámide...): se verá por dentro con efecto rayos X. Si no, false.
-  * "zoom": MUY IMPORTANTE para que el vídeo explique de verdad. Cuando la escena cuente CÓMO FUNCIONA algo o QUÉ
+  * "zoom": SOLO si la escena explica cómo funciona algo por dentro (cuerpo, naturaleza, ciencia, máquinas). En historias,
+    deporte, famosos, cine, comida, etc. normalmente NO hace falta: usa personajes, escenarios e iconos. Cuando la escena cuente CÓMO FUNCIONA algo o QUÉ
     PASA por dentro, aparece una lupa que muestra ese proceso animado. Formato:
     {{"of": parte de la criatura de donde sale la lupa ({parts}) o "", "items": 1 a 4 elementos}}
     cada elemento: {{"kind": tipo, "label": "NOMBRE CORTO EN ESPAÑOL", "do": qué hace, "color": opcional ({colors})}}
@@ -74,7 +78,8 @@ ANIM_RULES = """- El vídeo es una ANIMACIÓN de monigotes. Para cada escena eli
     {{"kind": "fluid", "label": "LÍQUIDO", "do": "flow"}}, {{"kind": "particles", "label": "RESIDUOS", "do": "exit"}}]}}
     Ejemplo (fisión nuclear): {{"of": "", "items": [{{"kind": "atoms", "label": "URANIO", "do": "split"}}]}}
     Ejemplo (las defensas atacan un virus): {{"of": "", "items": [{{"kind": "blood", "label": "SANGRE", "do": "flow"}}, {{"kind": "virus", "label": "VIRUS", "do": "die"}}]}}
-    Úsalo en 2-4 escenas (las que explican el mecanismo). Con zoom, la criatura puede ir en rayos X ("xray": true). null si no.
+    Úsalo en 0-3 escenas según el tema. Con zoom, la criatura puede ir en rayos X ("xray": true). null si no.
+    "xray" igual: solo cuando de verdad aporte (ver huesos, órganos, el interior de algo).
   * "chart": cuando la escena da CIFRAS, una gráfica animada (nunca en la misma escena que "zoom"):
     comparación -> {{"type": "bars", "title": "...", "unit": "kg", "items": [{{"label": "Humano", "value": 1.4}}, {{"label": "Elefante", "value": 4.8}}]}}
     un número impactante -> {{"type": "counter", "to": 86000000000, "prefix": "", "suffix": "", "title": "neuronas en tu cerebro"}}
@@ -95,8 +100,9 @@ def _extract_json(text: str) -> dict:
 
 
 def pick_category(history: list) -> str:
-    last = history[-1]["category"] if history else None
-    options = [c for c in config.CATEGORIES if c != last]
+    """Elige una temática que no haya salido en los últimos vídeos (máxima variedad)."""
+    recent = {h.get("category") for h in history[-8:]}
+    options = [c for c in config.CATEGORIES if c not in recent] or config.CATEGORIES
     return random.choice(options)
 
 
