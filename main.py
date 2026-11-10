@@ -106,22 +106,31 @@ def main():
         if os.getenv("IG_ACCESS_TOKEN"):
             from src import hosting, instagram
             tag = f"reel-{dt.datetime.now():%Y%m%d-%H%M%S}"
-            # 1º subida directa del archivo a Meta; si no se puede, por enlace (GitHub)
-            attempts = [("directa", None), ("directa", None), ("github", 0)]
+            # 1º subida directa del archivo; si Instagram no lo procesa, se reexporta con
+            # ajustes "ultra seguros" y se reintenta (directa y por enlace)
+            attempts = [("directa", "original"), ("directa", "seguro"), ("github", "seguro")]
+            safe_mp4 = None
             last_err = None
-            for n, (how, _) in enumerate(attempts):
+            for n, (how, version) in enumerate(attempts):
                 try:
+                    f = mp4
+                    if version == "seguro":
+                        if safe_mp4 is None:
+                            safe_mp4 = render.safe_copy(mp4)
+                            print(f"[instagram] reexportado en modo seguro: {safe_mp4}")
+                        f = safe_mp4
                     if how == "directa":
-                        entry["instagram_id"] = instagram.publish_reel_file(mp4, caption)
+                        entry["instagram_id"] = instagram.publish_reel_file(f, caption)
                     else:
-                        url = hosting.via_github_release(mp4, f"{tag}-{n}")
+                        url = hosting.via_github_release(f, f"{tag}-{n}")
                         print(f"[hosting] {url}")
                         entry["instagram_id"] = instagram.publish_reel(url, caption)
+                    print(f"[instagram] OK con el vídeo {version}")
                     last_err = None
                     break
                 except Exception as e:
                     last_err = e
-                    print(f"[instagram] intento {n + 1} ({how}) falló: {e}")
+                    print(f"[instagram] intento {n + 1} ({how}, vídeo {version}) falló: {e}")
                     time.sleep(20)
             if last_err:
                 errors.append(f"Instagram: {last_err}")

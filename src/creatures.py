@@ -838,8 +838,24 @@ PARTS = {
 }
 
 
+_FIT = {}
+
+
+def fit_scale(name, scale, max_h=720, max_w=760):
+    """Reduce los modelos muy altos o anchos para que no tapen textos ni al narrador."""
+    if name not in _FIT:
+        rec = cairo.RecordingSurface(cairo.CONTENT_COLOR_ALPHA, None)
+        c = cairo.Context(rec)
+        CREATURES[name].draw(c, 0.5)  # tamaño real de lo que se dibuja (cuello, antenas, mástil...)
+        x, y, w, h = rec.ink_extents()
+        h, w = max(-y, 1), max(w, 1)
+        _FIT[name] = min(1.0, max_h / h, max_w / w)
+    return scale * _FIT[name]
+
+
 def part_point(name, part, t, cx, base, scale):
     """Posición en pantalla de una parte de la criatura (para el cono de la lupa)."""
+    scale = fit_scale(name, scale)
     cr = CREATURES[name]
     pts = PARTS.get(name, {})
     x, y = pts.get(part) or pts.get("body") or (0, -300)
@@ -850,6 +866,7 @@ def part_point(name, part, t, cx, base, scale):
 def draw_creature(ctx, name, t, cx, base, scale, xray_t=None, shake=0.0):
     """Dibuja la criatura; si xray_t no es None, a partir de ese segundo se ve por dentro."""
     cr = CREATURES[name]
+    scale = fit_scale(name, scale)
     k = _pop((t - 0.05) / 0.45)
     if k <= 0:
         return

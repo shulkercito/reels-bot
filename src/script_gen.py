@@ -38,13 +38,31 @@ IMAGE_SCHEMA = '{{"text": "frase(s) de la narración", "image_prompt": "english 
 
 ANIM_RULES = """- El vídeo es una ANIMACIÓN de monigotes. Para cada escena elige cómo se anima, SOLO con estos valores:
   * "action" (lo que hace el monigote protagonista): {actions}
-  * "props" (0 a 3 objetos que aparecen; pueden repetirse, ej. 3 corazones): {props}
+  * "props" (0 a 3 objetos pequeños que aparecen; pueden repetirse, ej. 3 corazones): {props}
+    o CUALQUIER nombre de la lista de iconos de abajo (ej. "syringe", "violin", "coin").
   * "keyword": 1-3 palabras en MAYÚSCULAS que resumen la escena (un número, un dato clave) o "" si no hace falta.
     Pon keyword en más o menos la mitad de las escenas, no en todas.
   * "second": acción de un segundo monigote que reacciona (de la misma lista de acciones) o "" si está solo. Úsalo en 2-4 escenas.
-  * "bg": color de fondo: {bgs}. Cambia de color en cada escena.
-  * "creature": si se habla de algo de este catálogo, ponlo y aparecerá ANIMADO junto al monigote: {creatures}
-    (human = cuerpo humano). Úsalo en todas las escenas donde encaje. "" si no aplica.
+  * "scene": PAISAJE de fondo animado que sitúa la historia: {scenes}.
+    Elige el que encaje con lo que se cuenta (un pulpo -> mar o abismo, un faraón -> egipto, un planeta -> espacio,
+    un récord deportivo -> estadio, un experimento -> laboratorio...). Puede repetirse en escenas seguidas del mismo
+    lugar y cambiar cuando cambie el lugar. "" = fondo de color liso (para escenas de "idea", datos o gráficas).
+  * "bg": color de fondo liso cuando "scene" es "": {bgs}.
+  * "creature": si se habla de algo de este catálogo, ponlo y aparecerá ANIMADO junto al monigote.
+{creatures}
+    (human = cuerpo humano genérico). Úsalo en TODAS las escenas donde encaje; elige el más concreto posible.
+    "" si no aplica.
+  * "custom": si lo que se nombra es un ANIMAL o un PERSONAJE concreto que NO está en el catálogo (un ornitorrinco,
+    Napoleón, Cleopatra, un gladiador, una llama...), diséñalo tú con una plantilla y pon "creature": "custom".
+    Cuanto más fiel, mejor (colores reales, ropa y objetos típicos de la época). Formatos:
+{custom_help}
+    Repite EXACTAMENTE el mismo "custom" en todas las escenas donde salga el mismo personaje.
+  * "icon": si lo que se nombra es un OBJETO, lugar, comida, vehículo, planta o símbolo concreto que no está en el
+    catálogo, elige su icono EXACTO de esta lista (se anima junto al monigote). Úsalo también para concretar
+    mucho: una vacuna, un violín, un volcán, un sushi, una brújula... "" si no aplica.
+    Iconos: {icons}
+  * Orden de preferencia para que el vídeo NUNCA quede genérico: "creature" del catálogo > "custom" > "icon".
+    Casi todas las escenas deberían mostrar algo concreto de lo que se está contando.
   * "xray": true cuando la escena explica lo que hay DENTRO de la criatura (órganos, corazón, huesos, capas
     de la Tierra, magma del volcán, cámaras de la pirámide...): se verá por dentro con efecto rayos X. Si no, false.
   * "zoom": MUY IMPORTANTE para que el vídeo explique de verdad. Cuando la escena cuente CÓMO FUNCIONA algo o QUÉ
@@ -66,7 +84,7 @@ ANIM_RULES = """- El vídeo es una ANIMACIÓN de monigotes. Para cada escena eli
 - Varía mucho las acciones: que no se repita la misma acción en dos escenas seguidas.
   Usa "shocked" en el gancho, "point" cuando se explica un objeto, "think" ante preguntas, "celebrate"/"laugh" en el final."""
 ANIM_SCHEMA = ('{{"text": "frase(s) de la narración", "action": "...", "props": ["..."], '
-               '"keyword": "...", "second": "...", "bg": "...", "creature": "...", "xray": false, "zoom": null, "chart": null}}')
+               '"keyword": "...", "second": "...", "scene": "...", "bg": "...", "creature": "...", "custom": null, "icon": "...", "xray": false, "zoom": null, "chart": null}}')
 
 
 def _extract_json(text: str) -> dict:
@@ -100,11 +118,13 @@ def generate(history: list) -> dict:
     used = ", ".join(h["topic"] for h in history[-80:]) or "ninguno"
     if style == "animado":
         from src import anim
-        from src import creatures, explain
+        from src import catalog, creatures, custom, emoji, explain, scenery
         parts = sorted({p for d in creatures.PARTS.values() for p in d})
+        cat_txt = "\n".join(f"    - {g}: {', '.join(n)}" for g, n in catalog.GROUPS.items())
         kinds = "; ".join(f"{k} ({'/'.join(v)})" for k, v in explain.DOS.items())
         rules = ANIM_RULES.format(actions=", ".join(anim.ACTIONS), props=", ".join(anim.PROPS),
-                                  bgs=", ".join(anim.BACKGROUNDS), creatures=", ".join(creatures.CREATURES),
+                                  bgs=", ".join(anim.BACKGROUNDS), creatures=cat_txt, scenes=", ".join(scenery.LANDSCAPES),
+                                  custom_help=custom.prompt_help(), icons=", ".join(emoji.catalog_names()),
                                   parts=", ".join(parts), kinds=kinds, colors=", ".join(explain.COLORS))
         schema = ANIM_SCHEMA
     else:
@@ -184,19 +204,39 @@ def _clean_anim(scenes: list):
         if a not in anim.ACTIONS or a == prev:
             a = random.choice([x for x in anim.ACTIONS if x != prev and x not in ("walk", "run")])
         s["action"] = prev = a
-        s["props"] = [p for p in (s.get("props") or []) if p in anim.PROPS][:3]
+        s["_raw_props"] = [str(p).lower().strip() for p in (s.get("props") or [])][:3]
         sec = str(s.get("second") or "").lower()
         s["second"] = sec if sec in anim.ACTIONS and sec not in ("walk", "run") else ""
         s["keyword"] = str(s.get("keyword") or "").upper()[:22]
         s["subject"] = ""  # sin dibujos de IA: solo monigotes, objetos y criaturas animadas
-        from src import creatures
-        cr = str(s.get("creature") or "").lower().strip()
+        from src import catalog, creatures  # noqa: F401
+        from src import custom, emoji
+        cr = str(s.get("creature") or "").lower().strip().replace(" ", "_")
+        icon = emoji.find(s.get("icon")) if s.get("icon") else None
+        if cr == "custom" or (cr not in creatures.CREATURES and isinstance(s.get("custom"), dict)):
+            cr = custom.build(s.get("custom")) or ""
+        elif cr and cr not in creatures.CREATURES:
+            icon = icon or emoji.find(cr)  # algo que no está dibujado: se busca en los iconos
+            cr = ""
         s["creature"] = cr if cr in creatures.CREATURES else ""
+        s["icon"] = icon if not s["creature"] else None
+        props = []
+        for pr in (s.get("_raw_props") or []):
+            if pr in anim.PROPS:
+                props.append(pr)
+            else:
+                e = emoji.find(pr)
+                if e:
+                    props.append("emoji:" + e)
+        s["props"] = props[:3]
         s["xray"] = bool(s.get("xray")) and bool(s["creature"])
         if s["creature"]:
             s["subject"] = ""  # la criatura animada manda; no hace falta dibujo de IA
         from src import explain
         s["zoom"] = explain.clean_zoom(s.get("zoom"))
         s["chart"] = None if s["zoom"] else explain.clean_chart(s.get("chart"))
+        from src import scenery
+        sc_name = str(s.get("scene") or "").lower().strip()
+        s["scene"] = sc_name if sc_name in scenery.LANDSCAPES else ""
         if s.get("bg") not in anim.BACKGROUNDS or (i and s["bg"] == scenes[i - 1]["bg"]):
             s["bg"] = bgs[i % len(bgs)]

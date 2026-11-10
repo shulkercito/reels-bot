@@ -126,6 +126,32 @@ def _leg_drop(a1, a2, l1, l2):
     return l1 * math.cos(a1) + l2 * math.cos(a1 + a2)
 
 
+_DARK = False
+_HALO = [(dx, dy) for dx in (-7, 0, 7) for dy in (-7, 0, 7) if dx or dy]
+
+
+def draw_char(ctx, x, feet, sc, *args):
+    """Monigote; en paisajes oscuros lleva un halo blanco para que se vea."""
+    if not _DARK:
+        draw_character(ctx, x, feet, sc, *args)
+        return
+    ctx.save()
+    ctx.rectangle(x - 420 * sc, feet - 1050 * sc, 840 * sc, 1100 * sc)
+    ctx.clip()
+    ctx.push_group()
+    draw_character(ctx, x, feet, sc, *args)
+    pat = ctx.pop_group()
+    for dx, dy in _HALO:
+        ctx.save()
+        ctx.translate(dx, dy)
+        ctx.set_source_rgba(1, 1, 1, 0.9)
+        ctx.mask(pat)
+        ctx.restore()
+    ctx.set_source(pat)
+    ctx.paint()
+    ctx.restore()
+
+
 def draw_character(ctx, x, feet, sc, pose, expr, shirt, facing, t, talking, seed):
     UA, LA, UL, LL, TORSO, R = 115 * sc, 105 * sc, 135 * sc, 135 * sc, 200 * sc, 78 * sc
     x += pose["dx"]
@@ -543,25 +569,32 @@ FEET = 1380
 
 
 def draw_scene(ctx, sc, t, dur, idx):
+    from src import scenery
+    land = sc.get("scene") if sc.get("scene") in scenery.LANDSCAPES else None
+    global _DARK
+    _DARK = land in scenery.DARK
     bg = BACKGROUNDS.get(sc.get("bg"), BACKGROUNDS["azul"])
     rnd = random.Random(idx * 7919)
+    if land:
+        scenery.draw_landscape(ctx, land, t, FEET)
     # fondo + suelo + puntitos que se mueven
-    ctx.set_source_rgb(*bg)
-    ctx.paint()
-    ctx.set_source_rgba(1, 1, 1, 0.35)
-    for k in range(26):
-        px = (rnd.uniform(0, W) + t * 25 * (1 + k % 3)) % (W + 60) - 30
-        py = rnd.uniform(0, FEET - 100)
-        ctx.arc(px, py, rnd.uniform(6, 16), 0, 2 * math.pi)
+    if not land:
+        ctx.set_source_rgb(*bg)
+        ctx.paint()
+        ctx.set_source_rgba(1, 1, 1, 0.35)
+        for k in range(26):
+            px = (rnd.uniform(0, W) + t * 25 * (1 + k % 3)) % (W + 60) - 30
+            py = rnd.uniform(0, FEET - 100)
+            ctx.arc(px, py, rnd.uniform(6, 16), 0, 2 * math.pi)
+            ctx.fill()
+        ctx.rectangle(0, FEET, W, H - FEET)
+        ctx.set_source_rgb(*shade(bg, 0.9))
         ctx.fill()
-    ctx.rectangle(0, FEET, W, H - FEET)
-    ctx.set_source_rgb(*shade(bg, 0.9))
-    ctx.fill()
-    ctx.move_to(0, FEET)
-    ctx.line_to(W, FEET)
-    ctx.set_source_rgb(*shade(bg, 0.75))
-    ctx.set_line_width(6)
-    ctx.stroke()
+        ctx.move_to(0, FEET)
+        ctx.line_to(W, FEET)
+        ctx.set_source_rgb(*shade(bg, 0.75))
+        ctx.set_line_width(6)
+        ctx.stroke()
 
     action = sc.get("action", "talk")
     expr = sc.get("expression") or DEFAULT_EXPR.get(action, "neutral")
@@ -582,9 +615,11 @@ def draw_scene(ctx, sc, t, dur, idx):
     shirt = SHIRTS[sc.get("shirt", idx) % len(SHIRTS)]
     pop = 0.8 + 0.2 * ease_out_back(t / 0.3)  # pequeño "boing" al entrar
 
-    from src import creatures, explain
+    from src import catalog, creatures, explain  # noqa: F401  (catalog registra todos los modelos)
     creature = sc.get("creature") if sc.get("creature") in creatures.CREATURES else None
     sticker = None if creature else _load_sticker(sc.get("_sticker"))
+    from src import emoji
+    icon = sc.get("icon") if not creature and sc.get("icon") else None
     zoom = sc.get("zoom") if isinstance(sc.get("zoom"), dict) and sc["zoom"].get("items") else None
     chart = sc.get("chart") if isinstance(sc.get("chart"), dict) and sc["chart"].get("type") else None
     nscale = 1.15
@@ -601,12 +636,26 @@ def draw_scene(ctx, sc, t, dur, idx):
         second = ""
         props = props[:1]
         _draw_sticker(ctx, sticker, t, shake)
+    elif icon and not (zoom or chart):  # icono de la biblioteca como protagonista
+        second = ""
+        props = props[:1]
+        kk = ease_out_back((t - 0.05) / 0.45)
+        if kk > 0:
+            ctx.save()
+            ctx.translate(770, FEET + 10)
+            ctx.scale(1, 0.2)
+            ctx.arc(0, 0, 170 * kk, 0, 2 * math.pi)
+            ctx.restore()
+            ctx.set_source_rgba(0, 0, 0, 0.15)
+            ctx.fill()
+            emoji.draw(ctx, icon, 770, FEET - 260, 480, t, k=kk, shake=shake,
+                       lively=emoji.group(icon) in ("Animals & Nature", "People & Body", "Smileys & Emotion"))
 
     if chart:
         mx, facing, nscale = 110, 1, 0.75
     elif zoom:
         mx, facing, nscale = 170, 1, 1.0
-    elif creature or sticker is not None:
+    elif creature or sticker is not None or icon:
         mx, facing = 290, 1
     elif second:
         mx, facing = 300, 1
@@ -623,7 +672,7 @@ def draw_scene(ctx, sc, t, dur, idx):
     slots = PROP_SLOTS.get(min(len(props), 3), [])
     if second:
         slots = [(540, 640), (400, 560), (680, 560)][: len(slots)]
-    if creature or sticker is not None:
+    if creature or sticker is not None or icon:
         slots = [(450, 600)]
     for k, (name, (px, py)) in enumerate(zip(props[:3], slots)):
         kk = ease_out_back((t - 0.2 - 0.28 * k) / 0.35)
@@ -633,7 +682,11 @@ def draw_scene(ctx, sc, t, dur, idx):
         ctx.translate(px, py + 14 * math.sin(t * 2.5 + k))
         ctx.rotate(0.12 * math.sin(t * 1.8 + k * 2))
         ctx.scale(kk, kk)
-        draw_prop(ctx, name, 95 if (len(props) > 1 or creature or sticker is not None) else 135, t)
+        size = 95 if (len(props) > 1 or creature or sticker is not None or icon) else 135
+        if str(name).startswith("emoji:"):
+            emoji.draw(ctx, name[6:], 0, 0, size * 2.1, t)
+        else:
+            draw_prop(ctx, name, size, t)
         ctx.restore()
 
     # personajes
@@ -641,7 +694,7 @@ def draw_scene(ctx, sc, t, dur, idx):
     ctx.translate(mx, FEET)
     ctx.scale(pop, pop)
     ctx.translate(-mx, -FEET)
-    draw_character(ctx, mx, FEET, nscale, pose, expr, shirt, facing, t, True, idx * 1.7)
+    draw_char(ctx, mx, FEET, nscale, pose, expr, shirt, facing, t, True, idx * 1.7)
     ctx.restore()
     if zoom:  # lupa que muestra el proceso por dentro
         anchor = None
@@ -660,7 +713,7 @@ def draw_scene(ctx, sc, t, dur, idx):
             ctx.translate(790, FEET)
             ctx.scale(k2 * 0.92, k2 * 0.92)
             ctx.translate(-790, -FEET)
-            draw_character(ctx, 790, FEET, 1.05, p2, e2, SHIRTS[(idx + 2) % len(SHIRTS)], -1, t, False, idx * 3.1)
+            draw_char(ctx, 790, FEET, 1.05, p2, e2, SHIRTS[(idx + 2) % len(SHIRTS)], -1, t, False, idx * 3.1)
             ctx.restore()
     ctx.restore()
 

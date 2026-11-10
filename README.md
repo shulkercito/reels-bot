@@ -73,3 +73,6 @@ LLM_API_KEY=xxx python main.py --no-publish   # vídeo real, sin publicar
 - **Instagram no procesa el vídeo** (`ERROR` en el estado): pon la variable `VIDEO_HOST = catbox`.
 - **Imágenes que fallan**: la cuota gratis de Pollinations se satura a veces; el bot reintenta y reutiliza la imagen anterior. Con `POLLINATIONS_TOKEN` va mejor.
 - **Token caducado**: genera uno nuevo y actualiza `IG_ACCESS_TOKEN` (o configura `GH_PAT` para que se renueve solo).
+
+## Créditos
+- Iconos: [Fluent Emoji](https://github.com/microsoft/fluentui-emoji) de Microsoft, licencia MIT (ver `assets/emoji/LICENSE-fluentui-emoji.txt`).

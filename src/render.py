@@ -112,3 +112,18 @@ def finish(video_input: list, voice: str, ass: str, out_mp4: str):
         "-movflags", "+faststart", out_mp4,
     ]
     _run(cmd)
+
+
+def safe_copy(mp4: str) -> str:
+    """Copia con los ajustes más compatibles posibles para Instagram."""
+    out = mp4[:-4] + "_seguro.mp4"
+    _run([
+        "ffmpeg", "-y", "-i", mp4,
+        "-vf", f"scale={config.WIDTH}:{config.HEIGHT}:flags=lanczos,fps=30,format=yuv420p,setsar=1",
+        "-c:v", "libx264", "-preset", "medium", "-profile:v", "main", "-level", "4.0",
+        "-b:v", "5M", "-maxrate", "5M", "-bufsize", "10M", "-g", "60", "-bf", "2",
+        "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+        "-c:a", "aac", "-b:a", "128k", "-ar", "44100", "-ac", "2",
+        "-map_metadata", "-1", "-movflags", "+faststart", out,
+    ])
+    return out
