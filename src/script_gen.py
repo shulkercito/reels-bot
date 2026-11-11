@@ -14,7 +14,9 @@ PROMPT = """Eres guionista de vídeos virales cortos (Reels/TikTok) de {category
 Escribe UN vídeo en idioma "{lang}" sobre un tema concreto y verídico dentro de esa categoría.
 
 Reglas:
-- Primera frase = gancho brutal de menos de 12 palabras que obligue a quedarse (pregunta o afirmación chocante).
+- GANCHO: escribe 3 ganchos MUY distintos (pregunta intrigante, afirmación chocante, "no te vas a creer...") y elige
+  el más potente. El elegido es la PRIMERA frase de la narración (menos de 12 palabras) y además su versión corta va
+  en pantalla desde el primer segundo ("hook_title", máximo 6 palabras, que dé ganas de quedarse).
 - Narración total entre {wmin} y {wmax} palabras, frases cortas, sin emojis.
 - Tono ENTRETENIDO y cercano, como un colega contándote un cotilleo increíble: con giros, humor y sorpresa.
   NO es una clase de ciencias: nada de tecnicismos ni explicaciones de libro si el tema no lo pide.
@@ -29,6 +31,8 @@ Devuelve SOLO JSON válido con esta forma:
 {{
   "topic": "tema concreto en pocas palabras",
   "title": "título corto",
+  "hooks": ["gancho 1", "gancho 2", "gancho 3"],
+  "hook_title": "texto corto en pantalla (máx. 6 palabras)",
   "scenes": [{scene_schema}],
   "caption": "descripción para Instagram de 1-2 frases con gancho",
   "hashtags": ["#...", "..."]
@@ -168,6 +172,7 @@ def generate(history: list) -> dict:
                 r.raise_for_status()
                 data = _extract_json(r.json()["choices"][0]["message"]["content"])
                 _validate(data, style)
+                _fix_hook(data)
                 data["category"] = category
                 data["style"] = style
                 print(f"[guion] generado con {model} (estilo {style})")
@@ -182,6 +187,14 @@ def generate(history: list) -> dict:
                 print(f"[guion] {model} intento {attempt + 1} falló: {e} — espero {wait}s")
                 time.sleep(wait)
     raise RuntimeError(f"No se pudo generar el guion: {last_err}")
+
+
+def _fix_hook(data: dict):
+    h = str(data.get("hook_title") or "").strip().strip('"')
+    if not h:
+        h = str(data.get("title") or "")
+    words = h.split()
+    data["hook_title"] = " ".join(words[:7])
 
 
 def _validate(data: dict, style: str = "animado"):

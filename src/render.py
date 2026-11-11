@@ -77,11 +77,12 @@ def render(images: list, durations: list, voice: str, ass: str, out_mp4: str, wo
     finish(["-f", "concat", "-safe", "0", "-i", concat_list], voice, ass, out_mp4)
 
 
-def render_animated(scenes: list, durations: list, voice: str, ass: str, out_mp4: str, work: str):
+def render_animated(scenes: list, durations: list, voice: str, ass: str, out_mp4: str, work: str,
+                    hook: str = "", series: str = ""):
     """Animación por código (monigotes que se mueven), sin imágenes de IA."""
     from src import anim
     silent = f"{work}/anim.mp4"
-    anim.render_silent(scenes, durations, silent)
+    anim.render_silent(scenes, durations, silent, hook=hook, series=series)
     finish(["-i", silent], voice, ass, out_mp4)
 
 

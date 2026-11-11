@@ -717,7 +717,7 @@ def draw_scene(ctx, sc, t, dur, idx):
             ctx.restore()
     ctx.restore()
 
-    if not (isinstance(sc.get("chart"), dict) and sc["chart"].get("type")):
+    if not (isinstance(sc.get("chart"), dict) and sc["chart"].get("type")) and not sc.get("_nokw"):
         draw_keyword(ctx, sc.get("keyword", ""), t - 0.1)
 
 
@@ -754,7 +754,90 @@ def _draw_sticker(ctx, surf, t, shake):
     ctx.restore()
 
 
-def render_silent(scenes: list, durations: list, out_mp4: str):
+def _wrap(ctx, text, max_w):
+    words, lines, cur = text.split(), [], ""
+    for w in words:
+        test = (cur + " " + w).strip()
+        if ctx.text_extents(test).width <= max_w or not cur:
+            cur = test
+        else:
+            lines.append(cur)
+            cur = w
+    if cur:
+        lines.append(cur)
+    return lines
+
+
+def draw_hook(ctx, text, T, show=2.8):
+    """Gancho grande arriba, visible YA en el primer fotograma (sirve también de portada)."""
+    if not text or T > show:
+        return
+    out = ease_out((T - (show - 0.3)) / 0.3) if T > show - 0.3 else 0.0
+    k = 1 - out
+    if k <= 0.02:
+        return
+    ctx.save()
+    ctx.select_font_face("DejaVu Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    size = 96
+    ctx.set_font_size(size)
+    lines = _wrap(ctx, text.upper(), 880)
+    while len(lines) > 3 and size > 60:
+        size -= 8
+        ctx.set_font_size(size)
+        lines = _wrap(ctx, text.upper(), 880)
+    lh = size * 1.12
+    h = lh * len(lines) + 70
+    w = min(max(ctx.text_extents(l).width for l in lines) + 90, 1000)
+    cy = 400
+    pulse = 1 + 0.025 * math.sin(T * 6)
+    ctx.translate(W / 2, cy)
+    ctx.rotate(-0.025)
+    ctx.scale(k * pulse, k * pulse)
+    r = 34
+    x0, y0, x1, y1 = -w / 2, -h / 2, w / 2, h / 2
+    ctx.new_path()
+    ctx.arc(x1 - r, y0 + r, r, -math.pi / 2, 0)
+    ctx.arc(x1 - r, y1 - r, r, 0, math.pi / 2)
+    ctx.arc(x0 + r, y1 - r, r, math.pi / 2, math.pi)
+    ctx.arc(x0 + r, y0 + r, r, math.pi, 1.5 * math.pi)
+    ctx.close_path()
+    ctx.set_source_rgb(1, 0.86, 0.1)
+    ctx.fill_preserve()
+    ctx.set_source_rgb(*INK)
+    ctx.set_line_width(12)
+    ctx.stroke()
+    for n, line in enumerate(lines):
+        e = ctx.text_extents(line)
+        ctx.move_to(-e.width / 2 - e.x_bearing, y0 + 35 + lh * n + lh * 0.78)
+        ctx.text_path(line)
+        ctx.set_source_rgb(*INK)
+        ctx.fill()
+    ctx.restore()
+
+
+def draw_series(ctx, label):
+    """Etiqueta fija de la serie arriba a la izquierda: "MITOS FALSOS #12"."""
+    if not label:
+        return
+    ctx.save()
+    ctx.select_font_face("DejaVu Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    ctx.set_font_size(40)
+    e = ctx.text_extents(label)
+    x, y, h = 40, 175, 66
+    w = e.width + 50
+    ctx.new_path()
+    ctx.arc(x + h / 2, y + h / 2, h / 2, math.pi / 2, 1.5 * math.pi)
+    ctx.arc(x + w - h / 2, y + h / 2, h / 2, -math.pi / 2, math.pi / 2)
+    ctx.close_path()
+    ctx.set_source_rgb(*INK)
+    ctx.fill()
+    ctx.move_to(x + 25 - e.x_bearing, y + h / 2 - e.height / 2 - e.y_bearing)
+    ctx.set_source_rgb(1, 0.86, 0.1)
+    ctx.show_text(label)
+    ctx.restore()
+
+
+def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", series: str = ""):
     """Dibuja todas las escenas y las codifica en un mp4 sin audio (transición deslizante)."""
     surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, W, H)
     ctx = cairo.Context(surf)
@@ -771,10 +854,19 @@ def render_silent(scenes: list, durations: list, out_mp4: str):
         a, b = scenes[i - 1], scenes[i]
         za, zb = a.get("zoom") or {}, b.get("zoom") or {}
         b["_cont"] = bool(zb and za and a.get("creature") == b.get("creature") and za.get("of") == zb.get("of"))
+    if hook:  # mientras se ve el gancho, las escenas que empiezan antes no muestran su palabra clave
+        start = 0.0
+        for sc_, d_ in zip(scenes, durations):
+            if start < 2.8:
+                sc_["_nokw"] = True
+            start += d_
+    T = 0.0
     for i, (sc, dur) in enumerate(zip(scenes, durations)):
         frames = max(int(round(dur * FPS)), 1)
         for f in range(frames):
             t = f / FPS
+            if i == 0:
+                t += 0.6  # la 1ª escena ya está montada en el fotograma 0 (buena portada)
             if i > 0 and t < TR and not sc.get("_cont"):  # la escena anterior sale por la izquierda
                 k = ease_out(t / TR)
                 ctx.save()
@@ -787,6 +879,9 @@ def render_silent(scenes: list, durations: list, out_mp4: str):
                 ctx.restore()
             else:
                 draw_scene(ctx, sc, t, dur, i)
+            draw_series(ctx, series)
+            draw_hook(ctx, hook, T)
+            T += 1 / FPS
             surf.flush()
             proc.stdin.write(bytes(surf.get_data()))
     proc.stdin.close()

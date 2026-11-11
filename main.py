@@ -30,7 +30,18 @@ def save_history(history: list):
 
 def build_caption(script: dict) -> str:
     tags = " ".join(t if t.startswith("#") else f"#{t}" for t in script.get("hashtags", [])[:12])
-    return f"{script['caption']}\n\n{tags}".strip()
+    head = f"{script['series_label']} · " if script.get("series_label") else ""
+    return f"{head}{script['caption']}\n\n{tags}".strip()
+
+
+def assign_series(script: dict, history: list):
+    """Cada temática es una serie fija con su número de episodio ("Mitos falsos #12")."""
+    name = config.SERIES.get(script.get("category", ""))
+    if not name:
+        return
+    ep = 1 + sum(1 for h in history if h.get("series") == name)
+    script["series"], script["episode"] = name, ep
+    script["series_label"] = f"{name} #{ep}"
 
 
 def make_video(script: dict, work: str, demo=False) -> str:
@@ -63,7 +74,8 @@ def make_video(script: dict, work: str, demo=False) -> str:
     out = f"{config.OUTPUT_DIR}/reel_{dt.datetime.now():%Y%m%d_%H%M}.mp4"
     print(f"[montaje] {len(script['scenes'])} escenas, {total:.1f} s, estilo {style}…")
     if animated:
-        render.render_animated(script["scenes"], durations, voice, ass, out, work)
+        render.render_animated(script["scenes"], durations, voice, ass, out, work,
+                               hook=script.get("hook_title", ""), series=(script.get("series_label") or "").upper())
     else:
         render.render(images, durations, voice, ass, out, work, style=style)
     return out
@@ -88,6 +100,7 @@ def main():
         script = script_gen.generate(history)
     print(f"[guion] {script['category']} -> {script['topic']}")
 
+    assign_series(script, history)
     mp4 = make_video(script, work, demo=args.demo)
     caption = build_caption(script)
     with open(f"{config.OUTPUT_DIR}/caption.txt", "w", encoding="utf-8") as f:
@@ -95,7 +108,8 @@ def main():
     print(f"[ok] vídeo: {mp4}")
 
     entry = {"date": dt.date.today().isoformat(), "category": script["category"],
-             "style": script.get("style"),
+             "style": script.get("style"), "series": script.get("series"), "episode": script.get("episode"),
+             "hook": script.get("hook_title"),
              "topic": script["topic"], "title": script["title"]}
 
     publish = not args.no_publish and not args.demo and os.getenv("PUBLISH", "false").lower() == "true"

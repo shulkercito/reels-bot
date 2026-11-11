@@ -43,6 +43,35 @@ CATEGORIES = [
     "qué pasaría si... (hipotético)",
 ]
 
+# Cada temática es una SERIE con nombre fijo y número de episodio (crea costumbre y seguidores)
+SERIES = {
+    "historia real tan loca que parece inventada": "Parece inventado",
+    "personaje histórico con una vida de película": "Vidas de película",
+    "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)": "Golpes maestros",
+    "anécdota increíble de un famoso": "Famosos al desnudo",
+    "el origen sorprendente de una marca o empresa famosa": "Así nació",
+    "millonarios, dinero y fortunas absurdas": "Dinero absurdo",
+    "fútbol: anécdotas, récords y momentos legendarios": "Fútbol de leyenda",
+    "deporte: historias épicas y récords imposibles": "Deporte épico",
+    "videojuegos: secretos y curiosidades": "Secretos gamer",
+    "cine y series: secretos de rodaje y curiosidades": "Detrás de cámara",
+    "música: historias detrás de canciones y artistas": "La historia de la canción",
+    "costumbres y leyes rarísimas de otros países": "Solo pasa allí",
+    "lugares extraños, prohibidos o abandonados del planeta": "Lugares prohibidos",
+    "comida: orígenes y curiosidades que no sabías": "Lo que comes",
+    "mitos que todo el mundo cree y son falsos": "Mitos falsos",
+    "trucos y datos útiles para la vida diaria": "Truco del día",
+    "psicología: por qué hacemos lo que hacemos": "Tu cerebro te engaña",
+    "récords Guinness absurdos": "Récords absurdos",
+    "inventos y accidentes que cambiaron el mundo": "Inventado por error",
+    "misterio sin resolver": "Sin resolver",
+    "historia de Internet, memes y tecnología": "Historia de Internet",
+    "dato increíble de animales": "Animales increíbles",
+    "el espacio y el universo": "Fuera de este mundo",
+    "cuerpo humano y cerebro": "Tu cuerpo es raro",
+    "qué pasaría si... (hipotético)": "¿Qué pasaría si...?",
+}
+
 # --- Guion (LLM gratis vía API compatible con OpenAI) ------------------------
 # gemini -> clave gratis en https://aistudio.google.com/apikey
 # groq   -> clave gratis en https://console.groq.com/keys
