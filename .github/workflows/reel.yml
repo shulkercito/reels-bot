@@ -2,7 +2,8 @@ name: Reel diario
 
 on:
   schedule:
-    - cron: "47 17 * * *"   # 18:47 en España en invierno (19:47 en verano). Cambia la hora aquí.
+    - cron: "23 12 * * *"   # 13:23 en España en invierno (14:23 en verano)
+    - cron: "47 19 * * *"   # 20:47 en España en invierno (21:47 en verano)
   workflow_dispatch:
     inputs:
       publish:
