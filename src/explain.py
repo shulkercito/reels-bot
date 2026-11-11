@@ -525,8 +525,10 @@ def draw_chart(ctx, spec, t, center=(540, 760)):
 
 
 def _num(v):
+    if isinstance(v, bool) or v is None:
+        return None
     if isinstance(v, (int, float)):
-        return float(v)
+        return float(v) if v == v and abs(v) != float("inf") else None
     txt = str(v).strip().replace(" ", "").replace("\u00a0", "")
     if "," in txt or txt.count(".") > 1 or (txt.count(".") == 1 and len(txt.split(".")[1]) == 3):
         txt = txt.replace(".", "").replace(",", ".")  # formato español: 86.000.000.000 o 1,4
@@ -536,21 +538,36 @@ def _num(v):
         return None
 
 
+def _safe(fn):
+    def wrapper(v):
+        try:
+            return fn(v)
+        except Exception:
+            return None
+    return wrapper
+
+
+def _txt_(v, n):
+    return v[:n] if isinstance(v, str) else ""
+
+
+@_safe
 def clean_zoom(z):
-    if not isinstance(z, dict):
+    if not isinstance(z, dict) or not isinstance(z.get("items"), list):
         return None
     items = []
     for it in (z.get("items") or [])[:4]:
-        if not isinstance(it, dict) or it.get("kind") not in KINDS:
+        if not isinstance(it, dict) or not isinstance(it.get("kind"), str) or it["kind"] not in KINDS:
             continue
-        do = it.get("do") if it.get("do") in DOS[it["kind"]] else DOS[it["kind"]][0]
-        col = it.get("color") if it.get("color") in COLORS else None
-        items.append({"kind": it["kind"], "label": str(it.get("label") or "").upper()[:18], "do": do, "color": col})
+        do = it["do"] if isinstance(it.get("do"), str) and it["do"] in DOS[it["kind"]] else DOS[it["kind"]][0]
+        col = it["color"] if isinstance(it.get("color"), str) and it["color"] in COLORS else None
+        items.append({"kind": it["kind"], "label": _txt_(it.get("label"), 18).upper(), "do": do, "color": col})
     if not items:
         return None
-    return {"of": str(z.get("of") or "").lower(), "items": items}
+    return {"of": _txt_(z.get("of"), 20).lower(), "items": items}
 
 
+@_safe
 def clean_chart(c):
     if not isinstance(c, dict):
         return None
@@ -559,13 +576,13 @@ def clean_chart(c):
         if to is None:
             return None
         return {"type": "counter", "to": to, "from": _num(c.get("from")) or 0,
-                "prefix": str(c.get("prefix") or "")[:4], "suffix": str(c.get("suffix") or "")[:8],
-                "title": str(c.get("title") or "")[:30]}
+                "prefix": _txt_(c.get("prefix"), 4), "suffix": _txt_(c.get("suffix"), 8),
+                "title": _txt_(c.get("title"), 30)}
     items = []
-    for it in (c.get("items") or [])[:4]:
+    for it in (c.get("items") if isinstance(c.get("items"), list) else [])[:4]:
         v = _num(it.get("value")) if isinstance(it, dict) else None
-        if v is not None:
-            items.append({"label": str(it.get("label") or "")[:16], "value": v})
-    if len(items) < 2:
+        if v is not None and abs(v) < 1e15:
+            items.append({"label": _txt_(it.get("label"), 16), "value": v})
+    if len(items) < 2 or not any(i["value"] for i in items):
         return None
-    return {"type": "bars", "items": items, "unit": str(c.get("unit") or "")[:8], "title": str(c.get("title") or "")[:30]}
+    return {"type": "bars", "items": items, "unit": _txt_(c.get("unit"), 8), "title": _txt_(c.get("title"), 30)}

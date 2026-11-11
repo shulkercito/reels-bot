@@ -860,30 +860,46 @@ def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", s
             if start < 2.8:
                 sc_["_nokw"] = True
             start += d_
+    def frame(c, i, t, T):
+        sc, dur = scenes[i], durations[i]
+        if i > 0 and t < TR and not sc.get("_cont"):  # la escena anterior sale por la izquierda
+            k = ease_out(t / TR)
+            c.save()
+            c.translate(-W * k, 0)
+            draw_scene(c, scenes[i - 1], durations[i - 1] + t, durations[i - 1], i - 1)
+            c.restore()
+            c.save()
+            c.translate(W * (1 - k), 0)
+            draw_scene(c, sc, t, dur, i)
+            c.restore()
+        else:
+            draw_scene(c, sc, t, dur, i)
+        draw_series(c, series)
+        draw_hook(c, hook, T)
+
     T = 0.0
-    for i, (sc, dur) in enumerate(zip(scenes, durations)):
-        frames = max(int(round(dur * FPS)), 1)
-        for f in range(frames):
-            t = f / FPS
-            if i == 0:
-                t += 0.6  # la 1ª escena ya está montada en el fotograma 0 (buena portada)
-            if i > 0 and t < TR and not sc.get("_cont"):  # la escena anterior sale por la izquierda
-                k = ease_out(t / TR)
-                ctx.save()
-                ctx.translate(-W * k, 0)
-                draw_scene(ctx, scenes[i - 1], durations[i - 1] + t, durations[i - 1], i - 1)
-                ctx.restore()
-                ctx.save()
-                ctx.translate(W * (1 - k), 0)
-                draw_scene(ctx, sc, t, dur, i)
-                ctx.restore()
-            else:
-                draw_scene(ctx, sc, t, dur, i)
-            draw_series(ctx, series)
-            draw_hook(ctx, hook, T)
-            T += 1 / FPS
-            surf.flush()
-            proc.stdin.write(bytes(surf.get_data()))
+    try:
+        for i, dur in enumerate(durations[:len(scenes)]):
+            frames = max(int(round(dur * FPS)), 1)
+            for f in range(frames):
+                t = f / FPS + (0.6 if i == 0 else 0.0)  # la 1ª escena ya está montada en el fotograma 0 (portada)
+                try:
+                    frame(ctx, i, t, T)
+                except Exception as e:  # una escena que no se puede dibujar se simplifica; el vídeo sigue
+                    print(f"[animación] escena {i} simplificada por un error de dibujo: {e}")
+                    from src.script_gen import simplify_scene
+                    for j in (i, i - 1):
+                        if j >= 0:
+                            simplify_scene(scenes[j], scenes[j].get("bg") if scenes[j].get("bg") in BACKGROUNDS else "azul")
+                    ctx = cairo.Context(surf)
+                    frame(ctx, i, t, T)
+                T += 1 / FPS
+                surf.flush()
+                proc.stdin.write(bytes(surf.get_data()))
+    except BaseException:
+        proc.stdin.close()
+        proc.wait()
+        raise
     proc.stdin.close()
     if proc.wait() != 0:
         raise RuntimeError("ffmpeg falló al codificar la animación")

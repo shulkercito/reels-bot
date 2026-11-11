@@ -39,7 +39,8 @@ def assign_series(script: dict, history: list):
     name = config.SERIES.get(script.get("category", ""))
     if not name:
         return
-    ep = 1 + sum(1 for h in history if h.get("series") == name)
+    # solo cuentan los vídeos que llegaron a publicarse (las pruebas no gastan número)
+    ep = 1 + sum(1 for h in history if h.get("series") == name and (h.get("instagram_id") or h.get("youtube_id")))
     script["series"], script["episode"] = name, ep
     script["series_label"] = f"{name} #{ep}"
 
@@ -174,7 +175,7 @@ def main():
 
 
 class AlreadyNotified(RuntimeError):
-    """Error que ya se ha avisado por Telegram junto con el vídeo."""
+    """Error que ya se ha avisado al móvil junto con el vídeo."""
 
 
 if __name__ == "__main__":

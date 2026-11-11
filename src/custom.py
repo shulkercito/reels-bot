@@ -50,12 +50,16 @@ _CACHE = {}
 
 
 def color(v, default):
-    if isinstance(v, (list, tuple)) and len(v) == 3:
+    if isinstance(v, (list, tuple)):
         try:
+            if len(v) != 3:
+                return default
             return tuple(min(max(float(x) / (255 if max(v) > 1 else 1), 0), 1) for x in v)
         except (TypeError, ValueError):
             return default
-    s = str(v or "").lower().strip()
+    if not isinstance(v, str):
+        return default
+    s = v.lower().strip()
     if re.fullmatch(r"#?[0-9a-f]{6}", s):
         s = s.lstrip("#")
         return tuple(int(s[i:i + 2], 16) / 255 for i in (0, 2, 4))
@@ -63,21 +67,38 @@ def color(v, default):
 
 
 def _pick(v, options, default):
-    v = str(v or "").lower().strip()
+    v = v.lower().strip() if isinstance(v, str) else ""
     return v if v in options else default
 
 
 def _flags(v, options):
     if isinstance(v, str):
         v = [v]
-    return tuple(x for x in (str(i).lower().strip() for i in (v or [])) if x in options)
+    if not isinstance(v, (list, tuple)):
+        return ()
+    return tuple(x for x in (i.lower().strip() for i in v if isinstance(i, str)) if x in options)
+
+
+def _int(v, lo, hi, default=0):
+    try:
+        return min(max(int(v), lo), hi)
+    except (TypeError, ValueError):
+        return default
 
 
 def build(spec):
     """Devuelve el nombre registrado del modelo a medida, o None si la especificación no vale."""
     if not isinstance(spec, dict):
         return None
-    tpl = str(spec.get("template", "")).lower()
+    try:
+        return _build(spec)
+    except Exception as e:  # una especificación rara de la IA nunca rompe el vídeo
+        print(f"[custom] modelo a medida descartado: {e}")
+        return None
+
+
+def _build(spec):
+    tpl = spec.get("template").lower() if isinstance(spec.get("template"), str) else ""
     key = "custom_" + hashlib.md5(json.dumps(spec, sort_keys=True, default=str).encode()).hexdigest()[:10]
     if key in _CACHE:
         return key
@@ -97,7 +118,7 @@ def build(spec):
                             snout=_pick(spec.get("snout"), QUAD["snout"], "dog"),
                             tail=_pick(spec.get("tail"), QUAD["tail"], "thin"),
                             pattern=None if _pick(spec.get("pattern"), QUAD["pattern"], "none") == "none"
-                            else spec.get("pattern"),
+                            else _pick(spec.get("pattern"), QUAD["pattern"], "none"),
                             pcolor=color(spec.get("pattern_color"), creatures.INK), extras=extras,
                             leg=legs, by=-(legs + bry * 0.55 + 10), brx=brx, bry=bry, legw=34 if body != "fat" else 50,
                             head=(head[0], -(legs + bry * 0.55 + 10) - bry * 0.9, head[2]) if not neck else head,
@@ -108,7 +129,7 @@ def build(spec):
                         legs=_pick(spec.get("legs"), BIRD["legs"], "short"), fly=bool(spec.get("fly", True)),
                         crest=bool(spec.get("crest")), bigeyes=bool(spec.get("big_eyes")),
                         tail=_pick(spec.get("tail"), BIRD["tail"], "fan"),
-                        neck=min(max(int(spec.get("neck") or 0), 0), 350), extras=_flags(spec.get("extras"), BIRD["extras"]),
+                        neck=_int(spec.get("neck"), 0, 350), extras=_flags(spec.get("extras"), BIRD["extras"]),
                         y=-420 if spec.get("fly", True) else -260)
     elif tpl == "fish":
         f = _flags(spec.get("features"), FISH["flags"])
@@ -130,10 +151,11 @@ def build(spec):
         hair_kind = _pick(hair[0] if isinstance(hair, list) and hair else hair, PERSON["hair"], "none")
         hair_col = color(hair[1] if isinstance(hair, list) and len(hair) > 1 else spec.get("hair_color"), (0.3, 0.2, 0.12))
         face = _pick(spec.get("face"), PERSON["face"], "normal")
-        obj = people.Person(skin=SKINS.get(str(spec.get("skin", "")).lower(), color(spec.get("skin"), people.SKIN)),
+        obj = people.Person(skin=SKINS.get(spec.get("skin").lower() if isinstance(spec.get("skin"), str) else "",
+                                           color(spec.get("skin"), people.SKIN)),
                             shirt=color(spec.get("shirt"), (0.3, 0.5, 0.9)), pants=color(spec.get("pants"), (0.3, 0.35, 0.55)),
-                            hat=None if _pick(spec.get("hat"), PERSON["hat"], "none") == "none" else spec.get("hat"),
-                            hold=None if _pick(spec.get("hold"), PERSON["hold"], "none") == "none" else spec.get("hold"),
+                            hat=None if _pick(spec.get("hat"), PERSON["hat"], "none") == "none" else _pick(spec.get("hat"), PERSON["hat"], "none"),
+                            hold=None if _pick(spec.get("hold"), PERSON["hold"], "none") == "none" else _pick(spec.get("hold"), PERSON["hold"], "none"),
                             face=face, beard=color(spec.get("beard"), None) if spec.get("beard") else None,
                             hair=None if hair_kind == "none" else (hair_kind, hair_col),
                             cape=color(spec.get("cape"), None) if spec.get("cape") else None,

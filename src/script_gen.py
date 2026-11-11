@@ -190,9 +190,16 @@ def generate(history: list) -> dict:
 
 
 def _fix_hook(data: dict):
-    h = str(data.get("hook_title") or "").strip().strip('"')
+    h = data.get("hook_title")
+    h = h.strip().strip('"') if isinstance(h, str) else ""
     if not h:
-        h = str(data.get("title") or "")
+        h = data.get("title") if isinstance(data.get("title"), str) else ""
+    for k in ("topic", "title", "caption"):  # campos que el resto del bot da por hechos
+        if not isinstance(data.get(k), str) or not data[k].strip():
+            raise ValueError(f"falta {k}")
+    if not isinstance(data.get("hashtags"), list):
+        data["hashtags"] = []
+    data["hashtags"] = [t for t in data["hashtags"] if isinstance(t, str)]
     words = h.split()
     data["hook_title"] = " ".join(words[:7])
 
@@ -201,11 +208,13 @@ def _validate(data: dict, style: str = "animado"):
     scenes = data.get("scenes") or []
     if len(scenes) < 6:
         raise ValueError("muy pocas escenas")
+    if any(not isinstance(s, dict) or not isinstance(s.get("text"), str) for s in scenes):
+        raise ValueError("escena sin texto")
     words = sum(len(s["text"].split()) for s in scenes)
     if words < 70 or words > 220:
         raise ValueError(f"longitud rara: {words} palabras")
     for s in scenes:
-        if not s.get("text"):
+        if not isinstance(s, dict) or not _str(s.get("text")):
             raise ValueError("escena sin texto")
         if style != "animado" and not s.get("image_prompt"):
             raise ValueError("escena sin image_prompt")
@@ -213,49 +222,64 @@ def _validate(data: dict, style: str = "animado"):
         _clean_anim(scenes)
 
 
+def _str(v) -> str:
+    return v.strip() if isinstance(v, str) else ""
+
+
 def _clean_anim(scenes: list):
     """Corrige valores que la IA se invente para que la animación nunca falle."""
-    from src import anim
+    from src import anim, catalog, creatures, custom, emoji, explain, scenery  # noqa: F401
     bgs = list(anim.BACKGROUNDS)
     prev = None
     for i, s in enumerate(scenes):
-        a = str(s.get("action", "")).lower()
-        if a not in anim.ACTIONS or a == prev:
-            a = random.choice([x for x in anim.ACTIONS if x != prev and x not in ("walk", "run")])
-        s["action"] = prev = a
-        s["_raw_props"] = [str(p).lower().strip() for p in (s.get("props") or [])][:3]
-        sec = str(s.get("second") or "").lower()
-        s["second"] = sec if sec in anim.ACTIONS and sec not in ("walk", "run") else ""
-        s["keyword"] = str(s.get("keyword") or "").upper()[:22]
-        s["subject"] = ""  # sin dibujos de IA: solo monigotes, objetos y criaturas animadas
-        from src import catalog, creatures  # noqa: F401
-        from src import custom, emoji
-        cr = str(s.get("creature") or "").lower().strip().replace(" ", "_")
-        icon = emoji.find(s.get("icon")) if s.get("icon") else None
-        if cr == "custom" or (cr not in creatures.CREATURES and isinstance(s.get("custom"), dict)):
-            cr = custom.build(s.get("custom")) or ""
-        elif cr and cr not in creatures.CREATURES:
-            icon = icon or emoji.find(cr)  # algo que no está dibujado: se busca en los iconos
-            cr = ""
-        s["creature"] = cr if cr in creatures.CREATURES else ""
-        s["icon"] = icon if not s["creature"] else None
-        props = []
-        for pr in (s.get("_raw_props") or []):
-            if pr in anim.PROPS:
-                props.append(pr)
-            else:
-                e = emoji.find(pr)
-                if e:
-                    props.append("emoji:" + e)
-        s["props"] = props[:3]
-        s["xray"] = bool(s.get("xray")) and bool(s["creature"])
-        if s["creature"]:
-            s["subject"] = ""  # la criatura animada manda; no hace falta dibujo de IA
-        from src import explain
-        s["zoom"] = explain.clean_zoom(s.get("zoom"))
-        s["chart"] = None if s["zoom"] else explain.clean_chart(s.get("chart"))
-        from src import scenery
-        sc_name = str(s.get("scene") or "").lower().strip()
-        s["scene"] = sc_name if sc_name in scenery.LANDSCAPES else ""
-        if s.get("bg") not in anim.BACKGROUNDS or (i and s["bg"] == scenes[i - 1]["bg"]):
-            s["bg"] = bgs[i % len(bgs)]
+        try:
+            a = _str(s.get("action")).lower()
+            if a not in anim.ACTIONS or a == prev:
+                a = random.choice([x for x in anim.ACTIONS if x != prev and x not in ("walk", "run")])
+            s["action"] = prev = a
+            raw = s.get("props") if isinstance(s.get("props"), list) else []
+            sec = _str(s.get("second")).lower()
+            s["second"] = sec if sec in anim.ACTIONS and sec not in ("walk", "run") else ""
+            s["keyword"] = _str(s.get("keyword")).upper()[:22]
+            s["subject"] = ""  # sin dibujos de IA: solo monigotes, objetos y criaturas animadas
+
+            cr = _str(s.get("creature")).lower().replace(" ", "_")
+            icon = emoji.find(_str(s.get("icon")))
+            if cr == "custom" or (cr not in creatures.CREATURES and isinstance(s.get("custom"), dict)):
+                cr = custom.build(s.get("custom")) or ""
+            elif cr and cr not in creatures.CREATURES:
+                icon = icon or emoji.find(cr)  # algo que no está dibujado: se busca en los iconos
+                cr = ""
+            s["creature"] = cr if cr in creatures.CREATURES else ""
+            s["icon"] = icon if not s["creature"] else None
+            props = []
+            for pr in raw[:3]:
+                pr = _str(pr).lower()
+                if pr in anim.PROPS:
+                    props.append(pr)
+                elif emoji.find(pr):
+                    props.append("emoji:" + emoji.find(pr))
+            s["props"] = props
+            s["xray"] = s.get("xray") is True and bool(s["creature"])
+            s["zoom"] = explain.clean_zoom(s.get("zoom"))
+            s["chart"] = None if s["zoom"] else explain.clean_chart(s.get("chart"))
+            if i == 0:  # la 1ª escena lleva el gancho en pantalla: sin lupa ni gráfica que lo tapen
+                s["zoom"] = s["chart"] = None
+            sc_name = _str(s.get("scene")).lower()
+            s["scene"] = sc_name if sc_name in scenery.LANDSCAPES else ""
+            bg = _str(s.get("bg")).lower()
+            if bg not in anim.BACKGROUNDS or (i and bg == scenes[i - 1].get("bg")):
+                bg = bgs[i % len(bgs)]
+            s["bg"] = bg
+        except Exception as e:  # una escena rara nunca tumba el vídeo: se deja en lo básico
+            print(f"[guion] escena {i} simplificada por datos raros: {e}")
+            simplify_scene(s, bgs[i % len(bgs)])
+
+
+def simplify_scene(s: dict, bg: str = "azul"):
+    """Deja la escena en lo mínimo que siempre se puede dibujar (monigote hablando)."""
+    text = s.get("text")
+    keep = {"text": text, "action": "talk", "second": "", "keyword": "", "props": [], "creature": "", "icon": None,
+            "xray": False, "zoom": None, "chart": None, "scene": "", "bg": bg, "subject": ""}
+    s.clear()
+    s.update(keep)

@@ -136,9 +136,26 @@ def group(name):
 def find(term):
     """Busca el icono que mejor representa un término (en inglés preferentemente)."""
     _load()
-    if not _INDEX or not term:
+    if not _INDEX or not isinstance(term, str):
         return None
-    t = str(term).lower().strip()
+    t = term.lower().strip()
+    if len(t) < 3 or not re.search(r"[a-z]{3}", t):
+        return None
+    r = _find(t)
+    return r if r in _useful() else None
+
+
+_USEFUL = None
+
+
+def _useful():
+    global _USEFUL
+    if _USEFUL is None:
+        _USEFUL = set(catalog_names())
+    return _USEFUL
+
+
+def _find(t):
     s = re.sub(r"[^a-z0-9]+", "_", t).strip("_")
     if s in _INDEX:
         return s
