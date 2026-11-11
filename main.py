@@ -163,13 +163,28 @@ def main():
     if not args.demo:
         history.append(entry)
         save_history(history)
+
+    from src import notify
+    if publish:
+        notify.published(script, mp4, entry, errors)  # te llega el vídeo con los enlaces (y avisos si algo falló)
+    elif not args.demo:
+        notify.generated(script, mp4)
     if errors:  # la ejecución sale en rojo para que te enteres
-        raise RuntimeError(" | ".join(errors))
+        raise AlreadyNotified(" | ".join(errors))
+
+
+class AlreadyNotified(RuntimeError):
+    """Error que ya se ha avisado por Telegram junto con el vídeo."""
 
 
 if __name__ == "__main__":
     try:
         main()
+    except AlreadyNotified as e:
+        print(f"[error] {e}", file=sys.stderr)
+        raise
     except Exception as e:
         print(f"[error] {e}", file=sys.stderr)
+        from src import notify
+        notify.failed(f"{type(e).__name__}: {e}")
         raise
