@@ -12,7 +12,7 @@ FALLBACK_GEMINI = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.6-flas
 
 PROMPT = """Eres guionista de vídeos virales cortos (Reels/TikTok) de {category}.
 Escribe UN vídeo en idioma "{lang}" sobre un tema concreto y verídico dentro de esa categoría.
-
+{extra}
 Reglas:
 - GANCHO: escribe 3 ganchos MUY distintos (pregunta intrigante, afirmación chocante, "no te vas a creer...") y elige
   el más potente. El elegido es la PRIMERA frase de la narración (menos de 12 palabras) y además su versión corta va
@@ -123,7 +123,7 @@ def pick_style(history: list) -> str:
 def generate(history: list) -> dict:
     if not config.LLM_API_KEY:
         raise RuntimeError("Falta LLM_API_KEY")
-    category = pick_category(history)
+    category = config.FORCE_CATEGORY or pick_category(history)
     style = pick_style(history)
     used = ", ".join(h["topic"] for h in history[-80:]) or "ninguno"
     if style == "animado":
@@ -142,6 +142,7 @@ def generate(history: list) -> dict:
         schema = IMAGE_SCHEMA
     prompt = PROMPT.format(
         category=category, lang=config.LANGUAGE, history=used,
+        extra=f"\nINDICACIONES ESPECIALES (obligatorias): {config.FORCE_NOTES}\n" if config.FORCE_NOTES else "",
         scene_rules=rules, scene_schema=schema.replace("{{", "{").replace("}}", "}"),
         wmin=config.TARGET_WORDS[0], wmax=config.TARGET_WORDS[1],
     )

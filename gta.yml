@@ -1,0 +1,98 @@
+name: Especial GTA
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "¿Publicar en Instagram y YouTube? (desmarcado = solo te llega a Discord para revisarlo)"
+        type: boolean
+        default: false
+
+permissions:
+  contents: write   # para guardar history.json y crear la release con el vídeo
+
+concurrency: reel
+
+jobs:
+  reel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar ffmpeg y dependencias
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg fonts-dejavu-core libcairo2-dev pkg-config
+          pip install -r requirements.txt
+
+      - name: Generar (y publicar) el reel
+        id: gen
+        env:
+          LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'gemini' }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          POLLINATIONS_TOKEN: ${{ secrets.POLLINATIONS_TOKEN }}
+          LANGUAGE: ${{ vars.LANGUAGE || 'es' }}
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          VIDEO_HOST: ${{ vars.VIDEO_HOST || 'github' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
+          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
+          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          PUBLISH: ${{ inputs.publish }}
+          # --- lo único que cambia respecto al bot diario ---
+          FORCE_CATEGORY: "videojuegos: la saga Grand Theft Auto (GTA), su historia, secretos de desarrollo, récords y curiosidades"
+          FORCE_SERIES: "Especial GTA"
+          FORCE_NOTES: >-
+            Cuenta SOLO datos reales y comprobables de la saga GTA (GTA I, II, III, Vice City, San Andreas, IV, V,
+            GTA Online y el anuncio y los tráileres de GTA VI). No inventes detalles de la trama, personajes, mapa ni
+            mecánicas de GTA VI: si lo mencionas, limítate a hechos muy conocidos (que vuelve a Vice City, el récord
+            de visitas de su primer tráiler). No uses capturas, logos ni personajes oficiales: cuéntalo con los
+            monigotes, personajes a medida (gánsteres, policías, programadores de Rockstar...), iconos (coches,
+            dinero, sirenas, mandos de consola...) y paisajes (ciudad, noche, playa).
+        run: python main.py
+
+      - name: Guardar el vídeo para revisarlo
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reel-gta
+          path: |
+            output/*.mp4
+            output/caption.txt
+          retention-days: 7
+
+      - name: Guardar historial (evita repetir temas)
+        if: always()
+        run: |
+          git config user.name "reels-bot"
+          git config user.email "reels-bot@users.noreply.github.com"
+          git add history.json
+          git diff --cached --quiet && exit 0
+          git commit -m "historial: especial GTA"
+          # si has subido cambios mientras se generaba el vídeo, se colocan primero y luego el historial
+          git pull --rebase --autostash -q || true
+          git push
+
+      - name: Avisar al móvil si falla la instalación u otro paso
+        if: failure() && steps.gen.outcome != 'failure'
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          MSG="❌ El bot de Reels ha fallado antes de generar el vídeo: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          if [ -n "$DISCORD_WEBHOOK" ]; then
+            curl -s -H "Content-Type: application/json" -d "{\"content\": \"$MSG\"}" "$DISCORD_WEBHOOK" > /dev/null
+          fi
+          if [ -n "$TELEGRAM_TOKEN" ]; then
+            curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" -d chat_id="${TELEGRAM_CHAT_ID}" --data-urlencode text="$MSG" > /dev/null
+          fi

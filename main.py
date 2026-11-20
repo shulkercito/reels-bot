@@ -36,7 +36,7 @@ def build_caption(script: dict) -> str:
 
 def assign_series(script: dict, history: list):
     """Cada temática es una serie fija con su número de episodio ("Mitos falsos #12")."""
-    name = config.SERIES.get(script.get("category", ""))
+    name = config.FORCE_SERIES or config.SERIES.get(script.get("category", ""))
     if not name:
         return
     # solo cuentan los vídeos que llegaron a publicarse (las pruebas no gastan número)

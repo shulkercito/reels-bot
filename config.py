@@ -72,6 +72,11 @@ SERIES = {
     "qué pasaría si... (hipotético)": "¿Qué pasaría si...?",
 }
 
+# Ejecuciones especiales (p. ej. el workflow "Especial GTA"): si están vacías, el bot funciona como siempre
+FORCE_CATEGORY = os.getenv("FORCE_CATEGORY", "").strip()   # temática fija para este vídeo
+FORCE_SERIES = os.getenv("FORCE_SERIES", "").strip()       # nombre de serie propio ("Especial GTA")
+FORCE_NOTES = os.getenv("FORCE_NOTES", "").strip()         # indicaciones extra para el guion
+
 # --- Guion (LLM gratis vía API compatible con OpenAI) ------------------------
 # gemini -> clave gratis en https://aistudio.google.com/apikey
 # groq   -> clave gratis en https://console.groq.com/keys
