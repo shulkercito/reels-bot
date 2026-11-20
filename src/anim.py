@@ -569,7 +569,7 @@ FEET = 1380
 
 
 def draw_scene(ctx, sc, t, dur, idx):
-    from src import scenery
+    from src import catalog, scenery  # noqa: F401  (catalog registra modelos y paisajes extra)
     land = sc.get("scene") if sc.get("scene") in scenery.LANDSCAPES else None
     global _DARK
     _DARK = land in scenery.DARK

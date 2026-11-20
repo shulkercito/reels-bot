@@ -56,8 +56,12 @@ jobs:
             GTA Online y el anuncio y los tráileres de GTA VI). No inventes detalles de la trama, personajes, mapa ni
             mecánicas de GTA VI: si lo mencionas, limítate a hechos muy conocidos (que vuelve a Vice City, el récord
             de visitas de su primer tráiler). No uses capturas, logos ni personajes oficiales: cuéntalo con los
-            monigotes, personajes a medida (gánsteres, policías, programadores de Rockstar...), iconos (coches,
-            dinero, sirenas, mandos de consola...) y paisajes (ciudad, noche, playa).
+            monigotes y, sobre todo, con los modelos del grupo "gta" del catálogo (gangster, cop, swat, robber,
+            heist_woman, florida_man, biker, hacker, streamer, game_dev, businessman, rapper, beach_girl, detective,
+            sports_car, police_car, taxi, helicopter, motorcycle, speedboat, cash_stack, wanted_stars, controller,
+            console, vault, neon_sign, tv_trailer, radar_minimap) y sus paisajes (vicecity_noche, vicecity_playa,
+            autopista, pantano, banco, salon_gamer). Usa wanted_stars al hablar de la policía, tv_trailer para
+            tráileres y récords de visitas, game_dev/console/controller para el desarrollo y las ventas.
         run: python main.py
 
       - name: Guardar el vídeo para revisarlo

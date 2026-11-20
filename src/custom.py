@@ -9,7 +9,7 @@ import hashlib
 import json
 import re
 
-from src import creatures, people, zoo
+from src import creatures, gta, people, zoo
 
 COLORS = {
     "rojo": (0.92, 0.28, 0.28), "red": (0.92, 0.28, 0.28), "naranja": (1.0, 0.6, 0.2), "orange": (1.0, 0.6, 0.2),
@@ -45,6 +45,11 @@ PERSON = dict(hat=["none", "helmet_space", "nemes", "knight", "tricorn", "viking
               extras=["coat", "stethoscope", "stripes", "collar", "bandages", "armor", "number", "emblem", "fur",
                       "diaper", "torn", "suit_panel", "glasses", "patch", "mustache", "backpack", "sleeves",
                       "medals", "tie", "toga"])
+
+PERSON["hat"] += gta.NEW_HATS
+PERSON["hold"] += gta.NEW_HOLDS
+PERSON["extras"] += gta.NEW_EXTRAS
+PERSON["face"] += gta.NEW_FACES
 
 _CACHE = {}
 
@@ -151,7 +156,7 @@ def _build(spec):
         hair_kind = _pick(hair[0] if isinstance(hair, list) and hair else hair, PERSON["hair"], "none")
         hair_col = color(hair[1] if isinstance(hair, list) and len(hair) > 1 else spec.get("hair_color"), (0.3, 0.2, 0.12))
         face = _pick(spec.get("face"), PERSON["face"], "normal")
-        obj = people.Person(skin=SKINS.get(spec.get("skin").lower() if isinstance(spec.get("skin"), str) else "",
+        obj = gta.GTAPerson(skin=SKINS.get(spec.get("skin").lower() if isinstance(spec.get("skin"), str) else "",
                                            color(spec.get("skin"), people.SKIN)),
                             shirt=color(spec.get("shirt"), (0.3, 0.5, 0.9)), pants=color(spec.get("pants"), (0.3, 0.35, 0.55)),
                             hat=None if _pick(spec.get("hat"), PERSON["hat"], "none") == "none" else _pick(spec.get("hat"), PERSON["hat"], "none"),
