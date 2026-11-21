@@ -43,6 +43,19 @@ CATEGORIES = [
     "qué pasaría si... (hipotético)",
 ]
 
+# Peso de cada temática al elegir (por defecto 1). Las historias de personas y engaños son las que más
+# visitas dan; la ciencia pura queda como minoría.
+CATEGORY_WEIGHTS = {
+    "historia real tan loca que parece inventada": 3,
+    "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)": 3,
+    "anécdota increíble de un famoso": 3,
+    "fútbol: anécdotas, récords y momentos legendarios": 3,
+    "récords Guinness absurdos": 2,
+    "personaje histórico con una vida de película": 2,
+    "millonarios, dinero y fortunas absurdas": 2,
+    "videojuegos: secretos y curiosidades": 2,
+}
+
 # Cada temática es una SERIE con nombre fijo y número de episodio (crea costumbre y seguidores)
 SERIES = {
     "historia real tan loca que parece inventada": "Parece inventado",
@@ -89,7 +102,7 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", LLM_PRESETS[LLM_PROVIDER][0])
 LLM_MODEL = os.getenv("LLM_MODEL", LLM_PRESETS[LLM_PROVIDER][1])
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 
-TARGET_WORDS = (110, 145)  # ~40-55 s de narración
+TARGET_WORDS = (70, 95)  # ~25-35 s: en Shorts/Reels cortos se ven enteros y se repiten más
 
 # --- Imágenes (Pollinations, gratis) -----------------------------------------
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "flux")

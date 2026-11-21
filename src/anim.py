@@ -6,6 +6,7 @@ Cada escena se describe con un dict:
 y se dibuja fotograma a fotograma con cairo (vectorial, suavizado), sin ninguna API.
 """
 import math
+import re
 import random
 import subprocess
 
@@ -837,6 +838,37 @@ def draw_series(ctx, label):
     ctx.restore()
 
 
+def draw_follow(ctx, series, T, total, show=2.2):
+    """Cartel final que invita a seguir: "SÍGUEME PARA EL #5" (convierte visitas en seguidores)."""
+    left = total - T
+    if left > show or total < 8:
+        return
+    m = re.search(r"#(\d+)", series or "")
+    text = f"SÍGUEME PARA EL #{int(m.group(1)) + 1}" if m else "SÍGUEME PARA MÁS"
+    k = ease_out(min(1.0, (show - left) / 0.35))
+    ctx.save()
+    ctx.select_font_face("DejaVu Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+    ctx.set_font_size(70)
+    e = ctx.text_extents(text)
+    w, h = e.width + 90, 130
+    ctx.translate(W / 2, 330)
+    ctx.scale(k * (1 + 0.04 * math.sin(T * 8)), k * (1 + 0.04 * math.sin(T * 8)))
+    ctx.rotate(-0.03)
+    ctx.new_path()
+    ctx.arc(-w / 2 + h / 2, 0, h / 2, math.pi / 2, 1.5 * math.pi)
+    ctx.arc(w / 2 - h / 2, 0, h / 2, -math.pi / 2, math.pi / 2)
+    ctx.close_path()
+    ctx.set_source_rgb(0.95, 0.2, 0.35)
+    ctx.fill_preserve()
+    ctx.set_source_rgb(*INK)
+    ctx.set_line_width(10)
+    ctx.stroke()
+    ctx.move_to(-e.width / 2 - e.x_bearing, -e.height / 2 - e.y_bearing)
+    ctx.set_source_rgb(1, 1, 1)
+    ctx.show_text(text)
+    ctx.restore()
+
+
 def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", series: str = ""):
     """Dibuja todas las escenas y las codifica en un mp4 sin audio (transición deslizante)."""
     surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, W, H)
@@ -876,7 +908,9 @@ def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", s
             draw_scene(c, sc, t, dur, i)
         draw_series(c, series)
         draw_hook(c, hook, T)
+        draw_follow(c, series, T, total)
 
+    total = sum(durations[:len(scenes)])
     T = 0.0
     try:
         for i, dur in enumerate(durations[:len(scenes)]):

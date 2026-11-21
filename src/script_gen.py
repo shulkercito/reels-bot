@@ -14,16 +14,24 @@ PROMPT = """Eres guionista de vídeos virales cortos (Reels/TikTok) de {category
 Escribe UN vídeo en idioma "{lang}" sobre un tema concreto y verídico dentro de esa categoría.
 {extra}
 Reglas:
-- GANCHO: escribe 3 ganchos MUY distintos (pregunta intrigante, afirmación chocante, "no te vas a creer...") y elige
-  el más potente. El elegido es la PRIMERA frase de la narración (menos de 12 palabras) y además su versión corta va
-  en pantalla desde el primer segundo ("hook_title", máximo 6 palabras, que dé ganas de quedarse).
-- Narración total entre {wmin} y {wmax} palabras, frases cortas, sin emojis.
+- GANCHO: escribe 3 ganchos MUY distintos y elige el más potente. El gancho NO es una introducción: es el dato
+  más chocante de la historia soltado de golpe ("Este hombre vendió la Torre Eiffel. Dos veces.").
+  Prohibido empezar con contexto, fechas o "En el año...", "¿Sabías que...?", "Hoy te cuento...".
+  El elegido es la PRIMERA frase de la narración (menos de 10 palabras) y su versión corta va en pantalla desde el
+  primer segundo ("hook_title", máximo 6 palabras, que dé ganas de quedarse).
+- VÍDEO CORTO: narración total entre {wmin} y {wmax} palabras (unos 30 segundos), frases muy cortas, sin emojis.
+  Cada frase tiene que aportar algo nuevo: nada de relleno ni de repetir lo ya dicho.
 - Tono ENTRETENIDO y cercano, como un colega contándote un cotilleo increíble: con giros, humor y sorpresa.
   NO es una clase de ciencias: nada de tecnicismos ni explicaciones de libro si el tema no lo pide.
-  Si es una historia, cuéntala como una historia (personajes, qué pasó, giro final).
+  Si es una historia, cuéntala como una historia (personaje, qué pasó, giro final). Guarda un segundo dato
+  sorprendente para la mitad del vídeo, para que nadie se vaya.
 - Solo hechos reales y comprobables; si hay incertidumbre, dilo ("se cree que...").
-- Termina con una frase que invite a comentar o seguir la cuenta, sin ser pesado.
-- Divide la narración en 10 a 14 escenas cortas (una frase o media frase cada una). El texto de las escenas, unido, es la narración completa.
+- EVITA temas de muertes, ejecuciones, suicidios, asesinatos, accidentes con víctimas, torturas o heridas:
+  las plataformas les quitan alcance. Elige historias sorprendentes, divertidas o de ingenio.
+- FINAL EN BUCLE: la última frase NO es una despedida ni pide comentar ni seguir; es una frase corta que enlaza
+  con la primera, de modo que al repetirse el vídeo se lea seguido (ej. última: "Y todo empezó con una carta.",
+  primera: "Este hombre vendió la Torre Eiffel..."). El "sígueme" ya sale escrito en pantalla al final.
+- Divide la narración en 7 a 10 escenas cortas (una frase o media frase cada una). El texto de las escenas, unido, es la narración completa.
 {scene_rules}
 - NO repitas ninguno de estos temas ya publicados: {history}
 
@@ -34,7 +42,7 @@ Devuelve SOLO JSON válido con esta forma:
   "hooks": ["gancho 1", "gancho 2", "gancho 3"],
   "hook_title": "texto corto en pantalla (máx. 6 palabras)",
   "scenes": [{scene_schema}],
-  "caption": "descripción para Instagram de 1-2 frases con gancho",
+  "caption": "descripción de 1-2 frases con gancho; termina con una pregunta para que comenten o invitando a seguir la serie",
   "hashtags": ["#...", "..."]
 }}"""
 
@@ -107,7 +115,8 @@ def pick_category(history: list) -> str:
     """Elige una temática que no haya salido en los últimos vídeos (máxima variedad)."""
     recent = {h.get("category") for h in history[-8:]}
     options = [c for c in config.CATEGORIES if c not in recent] or config.CATEGORIES
-    return random.choice(options)
+    weights = [getattr(config, "CATEGORY_WEIGHTS", {}).get(c, 1) for c in options]
+    return random.choices(options, weights=weights)[0]
 
 
 def pick_style(history: list) -> str:
@@ -212,7 +221,7 @@ def _validate(data: dict, style: str = "animado"):
     if any(not isinstance(s, dict) or not isinstance(s.get("text"), str) for s in scenes):
         raise ValueError("escena sin texto")
     words = sum(len(s["text"].split()) for s in scenes)
-    if words < 70 or words > 220:
+    if words < 50 or words > 170:
         raise ValueError(f"longitud rara: {words} palabras")
     for s in scenes:
         if not isinstance(s, dict) or not _str(s.get("text")):
