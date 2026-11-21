@@ -892,20 +892,36 @@ def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", s
             if start < 2.8:
                 sc_["_nokw"] = True
             start += d_
+    def shot(c, j, tt, dd):
+        """Cámara que se mueve sola: acercamiento lento y un leve desplazamiento lateral (alterna por escena)."""
+        k = min(max(tt / max(dd, 0.1), 0.0), 1.2)
+        side = j
+        while side > 0 and scenes[side].get("_cont"):  # la lupa continúa: la cámara se queda donde estaba
+            side -= 1
+            k = 1.0
+        z = 1.0 + 0.045 * k
+        dx = (1 if side % 2 else -1) * 12 * k
+        c.save()
+        c.translate(W / 2 + dx, H * 0.45)
+        c.scale(z, z)
+        c.translate(-W / 2, -H * 0.45)
+        draw_scene(c, scenes[j], tt, dd, j)
+        c.restore()
+
     def frame(c, i, t, T):
         sc, dur = scenes[i], durations[i]
         if i > 0 and t < TR and not sc.get("_cont"):  # la escena anterior sale por la izquierda
             k = ease_out(t / TR)
             c.save()
             c.translate(-W * k, 0)
-            draw_scene(c, scenes[i - 1], durations[i - 1] + t, durations[i - 1], i - 1)
+            shot(c, i - 1, durations[i - 1] + t, durations[i - 1])
             c.restore()
             c.save()
             c.translate(W * (1 - k), 0)
-            draw_scene(c, sc, t, dur, i)
+            shot(c, i, t, dur)
             c.restore()
         else:
-            draw_scene(c, sc, t, dur, i)
+            shot(c, i, t, dur)
         draw_series(c, series)
         draw_hook(c, hook, T)
         draw_follow(c, series, T, total)

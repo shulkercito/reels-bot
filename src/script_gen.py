@@ -19,6 +19,9 @@ Reglas:
   Prohibido empezar con contexto, fechas o "En el año...", "¿Sabías que...?", "Hoy te cuento...".
   El elegido es la PRIMERA frase de la narración (menos de 10 palabras) y su versión corta va en pantalla desde el
   primer segundo ("hook_title", máximo 6 palabras, que dé ganas de quedarse).
+- Si la categoría es de "¿por qué...?" u "oficios", el gancho es la PREGUNTA intrigante ("¿Por qué los aviones
+  tienen ceniceros si no se puede fumar?", "Hubo gente que cobraba por despertarte a palos en la ventana") y la
+  respuesta completa se guarda para el FINAL: da pistas por el camino, pero que nadie pueda irse antes de saberla.
 - VÍDEO CORTO: narración total entre {wmin} y {wmax} palabras (unos 30 segundos), frases muy cortas, sin emojis.
   Cada frase tiene que aportar algo nuevo: nada de relleno ni de repetir lo ya dicho.
 - Tono ENTRETENIDO y cercano, como un colega contándote un cotilleo increíble: con giros, humor y sorpresa.
@@ -129,12 +132,12 @@ def pick_style(history: list) -> str:
     return random.choice(options)
 
 
-def generate(history: list) -> dict:
+def _draft(history: list, avoid=()) -> dict:
     if not config.LLM_API_KEY:
         raise RuntimeError("Falta LLM_API_KEY")
     category = config.FORCE_CATEGORY or pick_category(history)
     style = pick_style(history)
-    used = ", ".join(h["topic"] for h in history[-80:]) or "ninguno"
+    used = ", ".join([h["topic"] for h in history[-80:]] + list(avoid)) or "ninguno"
     if style == "animado":
         from src import anim
         from src import catalog, creatures, custom, emoji, explain, scenery
@@ -293,3 +296,75 @@ def simplify_scene(s: dict, bg: str = "azul"):
             "xray": False, "zoom": None, "chart": None, "scene": "", "bg": bg, "subject": ""}
     s.clear()
     s.update(keep)
+
+
+VERIFY_PROMPT = """Eres un verificador de datos muy estricto. Este guion de un vídeo corto debe contar SOLO hechos reales.
+Revisa cada persona, lugar, fecha, cifra y suceso. Marca como problema cualquier cosa inventada, nombres que no
+existen, cifras exageradas o hechos que mezclan historias distintas. Las frases de humor u opinión no son problema.
+
+Guion (tema: {topic}):
+{text}
+
+Devuelve SOLO JSON:
+{{"real": true/false (false si el suceso o la persona principal no existen o lo esencial es falso),
+  "problemas": ["..."],
+  "correcciones": [{{"escena": número empezando en 0, "texto": "frase corregida con el dato real"}}]}}"""
+
+
+def _chat(prompt: str, temperature=0.2) -> dict:
+    models = [config.LLM_MODEL]
+    if config.LLM_PROVIDER == "gemini":
+        models += [m for m in FALLBACK_GEMINI if m != config.LLM_MODEL]
+    last = None
+    for model in models:
+        for attempt in range(2):
+            try:
+                r = requests.post(f"{config.LLM_BASE_URL}/chat/completions",
+                                  headers={"Authorization": f"Bearer {config.LLM_API_KEY}"},
+                                  json={"model": model, "messages": [{"role": "user", "content": prompt}],
+                                        "temperature": temperature, "response_format": {"type": "json_object"}},
+                                  timeout=120)
+                if r.status_code == 404:
+                    break
+                r.raise_for_status()
+                return _extract_json(r.json()["choices"][0]["message"]["content"])
+            except Exception as e:
+                last = e
+                time.sleep(10 * (attempt + 1))
+    raise RuntimeError(f"verificación sin respuesta: {last}")
+
+
+def verify(data: dict) -> bool:
+    """Segunda pasada: otro "experto" revisa los datos. Corrige frases sueltas; si lo esencial es falso, False."""
+    text = "\n".join(f"[{i}] {s['text']}" for i, s in enumerate(data["scenes"]))
+    try:
+        res = _chat(VERIFY_PROMPT.format(topic=data.get("topic", ""), text=text))
+    except Exception as e:  # si el verificador no responde, no bloquea la publicación
+        print(f"[verificación] no disponible ({e}); sigo sin ella")
+        return True
+    probs = [p for p in (res.get("problemas") or []) if isinstance(p, str)]
+    if res.get("real") is False:
+        print(f"[verificación] DESCARTADO: {'; '.join(probs)[:300]}")
+        return False
+    fixed = 0
+    for c in res.get("correcciones") or []:
+        try:
+            i, t = int(c.get("escena")), _str(c.get("texto"))
+            if 0 <= i < len(data["scenes"]) and 2 <= len(t.split()) <= 3 * len(data["scenes"][i]["text"].split()) + 8:
+                data["scenes"][i]["text"] = t
+                fixed += 1
+        except Exception:
+            pass
+    print(f"[verificación] OK ({fixed} frases corregidas){': ' + '; '.join(probs)[:300] if probs else ''}")
+    return True
+
+
+def generate(history: list) -> dict:
+    """Escribe el guion y lo verifica; si el tema resulta falso o inventado, prueba con otro (hasta 3)."""
+    avoid = []
+    for _ in range(3):
+        data = _draft(history, avoid)
+        if verify(data):
+            return data
+        avoid.append(data.get("topic", ""))
+    raise RuntimeError("Ningún guion pasó la verificación de datos (no se publica nada dudoso)")

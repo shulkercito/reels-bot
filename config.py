@@ -14,6 +14,8 @@ VOICE_RATE = os.getenv("VOICE_RATE", "+8%")  # un pelín más rápido = más ret
 CATEGORIES = [
     # historias y gente
     "historia real tan loca que parece inventada",
+    "¿por qué...? la explicación sorprendente de una costumbre, objeto o norma de todos los días",
+    "oficios antiguos rarísimos que ya no existen",
     "personaje histórico con una vida de película",
     "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)",
     "anécdota increíble de un famoso",
@@ -47,6 +49,8 @@ CATEGORIES = [
 # visitas dan; la ciencia pura queda como minoría.
 CATEGORY_WEIGHTS = {
     "historia real tan loca que parece inventada": 3,
+    "¿por qué...? la explicación sorprendente de una costumbre, objeto o norma de todos los días": 3,
+    "oficios antiguos rarísimos que ya no existen": 3,
     "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)": 3,
     "anécdota increíble de un famoso": 3,
     "fútbol: anécdotas, récords y momentos legendarios": 3,
@@ -58,6 +62,8 @@ CATEGORY_WEIGHTS = {
 
 # Cada temática es una SERIE con nombre fijo y número de episodio (crea costumbre y seguidores)
 SERIES = {
+    "¿por qué...? la explicación sorprendente de una costumbre, objeto o norma de todos los días": "¿Por qué?",
+    "oficios antiguos rarísimos que ya no existen": "Oficios olvidados",
     "historia real tan loca que parece inventada": "Parece inventado",
     "personaje histórico con una vida de película": "Vidas de película",
     "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)": "Golpes maestros",
