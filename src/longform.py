@@ -184,7 +184,7 @@ def _wide_subs(words, path):
 def write_stories(history, theme, n):
     stories, done = [], []
     old = config.FORCE_CATEGORY, config.FORCE_NOTES, config.TARGET_WORDS
-    wmin, wmax = 120, 160
+    wmin, wmax = 140, 190
     try:
         config.FORCE_CATEGORY, config.TARGET_WORDS = theme, (wmin, wmax)
         for k in range(n):

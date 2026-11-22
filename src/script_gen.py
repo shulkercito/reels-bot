@@ -235,7 +235,8 @@ def _validate(data: dict, style: str = "animado"):
     if any(not isinstance(s, dict) or not isinstance(s.get("text"), str) for s in scenes):
         raise ValueError("escena sin texto")
     words = sum(len(s["text"].split()) for s in scenes)
-    if words < 50 or words > 170:
+    lo, hi = int(config.TARGET_WORDS[0] * 0.7), int(config.TARGET_WORDS[1] * 1.6)
+    if words < lo or words > hi:
         raise ValueError(f"longitud rara: {words} palabras")
     for s in scenes:
         if not isinstance(s, dict) or not _str(s.get("text")):
