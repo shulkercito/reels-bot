@@ -32,13 +32,14 @@ THEMES = [
     "personas con una suerte (buena o mala) increíble",
     "inventos que nacieron por accidente",
     "millonarios y fortunas absurdas",
-    "récords Guinness absurdos y sus protagonistas",
     "leyendas del fútbol: anécdotas que parecen mentira",
 ]
 
 LONG_NOTES = (
     "Esta historia es el capítulo {n} de {total} de un vídeo LARGO de YouTube sobre: {theme}. "
     "Tiene que ser una historia DISTINTA a estas, que ya salen en el vídeo: {done}. "
+    "Elige historias MUY conocidas y bien documentadas (con persona, año y lugar reales que salgan en la prensa o "
+    "en Wikipedia); mejor una historia famosa contada con gracia que una rara que no puedas comprobar. "
     "Extensión: entre {wmin} y {wmax} palabras. IGNORA la regla del final en bucle: termina con un remate o un "
     "último dato que cierre la historia. No saludes, no pidas seguir ni comentar, no digas 'en este vídeo'."
 )
