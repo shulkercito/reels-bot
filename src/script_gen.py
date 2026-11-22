@@ -132,6 +132,15 @@ def pick_style(history: list) -> str:
     return random.choice(options)
 
 
+NO_QUOTA = set()  # modelos que han dicho "sin cupo" (429): no se vuelven a intentar en esta ejecución
+
+
+def _quota(r, model):
+    if r.status_code == 429 and "quota" in r.text.lower():
+        NO_QUOTA.add(model)
+        raise LookupError(f"modelo {model} sin cupo hoy")
+
+
 def _draft(history: list, avoid=()) -> dict:
     if not config.LLM_API_KEY:
         raise RuntimeError("Falta LLM_API_KEY")
@@ -164,6 +173,7 @@ def _draft(history: list, avoid=()) -> dict:
         models += [m for m in FALLBACK_GEMINI if m != config.LLM_MODEL]
 
     last_err = None
+    models = [m for m in models if m not in NO_QUOTA] or models
     for model in models:
         for attempt in range(3):
             try:
@@ -180,6 +190,7 @@ def _draft(history: list, avoid=()) -> dict:
                 )
                 if r.status_code == 404:
                     raise LookupError(f"modelo {model} no disponible")
+                _quota(r, model)
                 if r.status_code in (429, 500, 502, 503, 504):
                     raise ConnectionError(f"{r.status_code} servidor saturado: {r.text[:150]}")
                 r.raise_for_status()
@@ -316,6 +327,7 @@ def _chat(prompt: str, temperature=0.2) -> dict:
     if config.LLM_PROVIDER == "gemini":
         models += [m for m in FALLBACK_GEMINI if m != config.LLM_MODEL]
     last = None
+    models = [m for m in models if m not in NO_QUOTA] or models
     for model in models:
         for attempt in range(2):
             try:
@@ -325,6 +337,9 @@ def _chat(prompt: str, temperature=0.2) -> dict:
                                         "temperature": temperature, "response_format": {"type": "json_object"}},
                                   timeout=120)
                 if r.status_code == 404:
+                    break
+                if r.status_code == 429 and "quota" in r.text.lower():
+                    NO_QUOTA.add(model)
                     break
                 r.raise_for_status()
                 return _extract_json(r.json()["choices"][0]["message"]["content"])
