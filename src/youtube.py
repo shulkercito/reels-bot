@@ -25,9 +25,24 @@ def _access_token() -> str:
 
 
 def upload_short(mp4: str, title: str, description: str, tags: list) -> str:
+    return upload_video(mp4, title, description, tags, short=True)
+
+
+def set_thumbnail(video_id: str, png: str):
+    """Miniatura personalizada (YouTube solo lo permite si el canal está verificado con el teléfono)."""
+    with open(png, "rb") as f:
+        r = requests.post("https://www.googleapis.com/upload/youtube/v3/thumbnails/set",
+                          params={"videoId": video_id, "uploadType": "media"},
+                          headers={"Authorization": f"Bearer {_access_token()}", "Content-Type": "image/png"},
+                          data=f, timeout=120)
+    if r.status_code not in (200, 201):
+        raise RuntimeError(f"miniatura no aplicada ({r.status_code}): {r.text[:200]}")
+
+
+def upload_video(mp4: str, title: str, description: str, tags: list, short=True, privacy=None) -> str:
     token = _access_token()
     title = title.strip()
-    if "#shorts" not in title.lower():
+    if short and "#shorts" not in title.lower():
         title = f"{title} #shorts"
     meta = {
         "snippet": {
@@ -37,7 +52,8 @@ def upload_short(mp4: str, title: str, description: str, tags: list) -> str:
             "categoryId": "27",  # Educación
             "defaultLanguage": "es",
         },
-        "status": {"privacyStatus": os.getenv("YT_PRIVACY", "public"), "selfDeclaredMadeForKids": False},
+        "status": {"privacyStatus": privacy or os.getenv("YT_PRIVACY", "public"), "selfDeclaredMadeForKids": False,
+                   "containsSyntheticMedia": True},
     }
     size = os.path.getsize(mp4)
     init = requests.post(
@@ -56,5 +72,5 @@ def upload_short(mp4: str, title: str, description: str, tags: list) -> str:
         raise RuntimeError(f"YouTube: error al subir ({up.status_code}): {up.text[:300]}")
     vid = up.json()["id"]
     status = up.json().get("status", {}).get("privacyStatus")
-    print(f"[youtube] publicado: https://youtube.com/shorts/{vid} ({status})")
+    print(f"[youtube] publicado: https://youtube.com/{'shorts/' if short else 'watch?v='}{vid} ({status})")
     return vid
