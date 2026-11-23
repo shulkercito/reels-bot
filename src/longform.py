@@ -12,6 +12,7 @@ import math
 import os
 import random
 import subprocess
+import time
 
 import cairo
 
@@ -190,10 +191,16 @@ def write_stories(history, theme, n):
         for k in range(n):
             config.FORCE_NOTES = LONG_NOTES.format(n=k + 1, total=n, theme=theme, done=", ".join(done) or "ninguna",
                                                    wmin=wmin, wmax=wmax)
-            try:
-                st = script_gen.generate(history + [{"topic": d, "category": theme} for d in done])
-            except Exception as e:  # una historia que falla no tira el vídeo entero
-                print(f"[largo] historia {k + 1} descartada: {e}")
+            st = None
+            for intento in range(2):  # si Gemini está saturado, espera un rato y lo vuelve a intentar
+                try:
+                    st = script_gen.generate(history + [{"topic": d, "category": theme} for d in done])
+                    break
+                except Exception as e:  # una historia que falla no tira el vídeo entero
+                    print(f"[largo] historia {k + 1} falló ({e}){'; espero 3 min y reintento' if intento == 0 else ''}")
+                    if intento == 0:
+                        time.sleep(180)
+            if st is None:
                 continue
             done.append(st.get("topic", ""))
             stories.append(st)
@@ -278,8 +285,10 @@ def make(history, theme=None, n=None, demo=False):
             s["title"] = f"Historia de prueba {k + 1}"
     else:
         stories = write_stories(history, theme, n)
-    if len(stories) < 3:
-        raise RuntimeError(f"Solo salieron {len(stories)} historias verificadas; no hago un vídeo largo tan corto")
+    minimo = 3 if demo else max(3, int(n * 0.7))
+    if len(stories) < minimo:
+        raise RuntimeError(f"Solo salieron {len(stories)} de {n} historias (Gemini saturado o sin cupo); "
+                           f"no publico un vídeo tan corto. Vuelve a lanzarlo más tarde.")
 
     segs, chapters, t0 = [], [], 0.0
     for k, st in enumerate(stories):
