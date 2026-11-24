@@ -133,6 +133,13 @@ def pick_style(history: list) -> str:
 
 
 NO_QUOTA = set()  # modelos que han dicho "sin cupo" (429): no se vuelven a intentar en esta ejecución
+RESTING = {}      # modelo -> hora hasta la que se salta por estar saturado (503 seguidos)
+
+
+def _usable(models):
+    now = time.time()
+    ok = [m for m in models if m not in NO_QUOTA and RESTING.get(m, 0) < now]
+    return ok or [m for m in models if m not in NO_QUOTA] or models
 
 
 def _quota(r, model):
@@ -173,8 +180,9 @@ def _draft(history: list, avoid=()) -> dict:
         models += [m for m in FALLBACK_GEMINI if m != config.LLM_MODEL]
 
     last_err = None
-    models = [m for m in models if m not in NO_QUOTA] or models
+    models = _usable(models)
     for model in models:
+        busy = 0
         for attempt in range(3):
             try:
                 r = requests.post(
@@ -192,6 +200,10 @@ def _draft(history: list, avoid=()) -> dict:
                     raise LookupError(f"modelo {model} no disponible")
                 _quota(r, model)
                 if r.status_code in (429, 500, 502, 503, 504):
+                    busy += 1
+                    if busy >= 2:  # saturado de verdad: descansa 10 min y prueba ya el siguiente modelo
+                        RESTING[model] = time.time() + 600
+                        raise LookupError(f"modelo {model} saturado ({r.status_code}), lo salto 10 min")
                     raise ConnectionError(f"{r.status_code} servidor saturado: {r.text[:150]}")
                 r.raise_for_status()
                 data = _extract_json(r.json()["choices"][0]["message"]["content"])
@@ -235,7 +247,7 @@ def _validate(data: dict, style: str = "animado"):
     if any(not isinstance(s, dict) or not isinstance(s.get("text"), str) for s in scenes):
         raise ValueError("escena sin texto")
     words = sum(len(s["text"].split()) for s in scenes)
-    lo, hi = int(config.TARGET_WORDS[0] * 0.7), int(config.TARGET_WORDS[1] * 1.6)
+    lo, hi = max(45, int(config.TARGET_WORDS[0] * 0.5)), int(config.TARGET_WORDS[1] * 1.6)
     if words < lo or words > hi:
         raise ValueError(f"longitud rara: {words} palabras")
     for s in scenes:
@@ -318,7 +330,8 @@ Guion (tema: {topic}):
 {text}
 
 Devuelve SOLO JSON:
-{{"real": true/false (false si el suceso o la persona principal no existen o lo esencial es falso),
+{{"real": true/false (false SOLO si la persona o el suceso principal no existieron o la historia entera es falsa;
+   una fecha, cifra o detalle equivocado NO es false: se arregla en "correcciones"),
   "problemas": ["..."],
   "correcciones": [{{"escena": número empezando en 0, "texto": "frase corregida con el dato real"}}]}}"""
 
@@ -328,7 +341,7 @@ def _chat(prompt: str, temperature=0.2) -> dict:
     if config.LLM_PROVIDER == "gemini":
         models += [m for m in FALLBACK_GEMINI if m != config.LLM_MODEL]
     last = None
-    models = [m for m in models if m not in NO_QUOTA] or models
+    models = _usable(models)
     for model in models:
         for attempt in range(2):
             try:
