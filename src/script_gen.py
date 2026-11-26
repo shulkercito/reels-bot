@@ -153,7 +153,7 @@ def _draft(history: list, avoid=()) -> dict:
         raise RuntimeError("Falta LLM_API_KEY")
     category = config.FORCE_CATEGORY or pick_category(history)
     style = pick_style(history)
-    used = ", ".join([h["topic"] for h in history[-80:]] + list(avoid)) or "ninguno"
+    used = ", ".join(dict.fromkeys([h["topic"] for h in history[-150:] if h.get("topic")] + list(avoid))) or "ninguno"
     if style == "animado":
         from src import anim
         from src import catalog, creatures, custom, emoji, explain, scenery
@@ -388,11 +388,40 @@ def verify(data: dict) -> bool:
     return True
 
 
+_STOP = set("el la los las un una unos unas de del al a en y o que por para con su sus se lo es historia real verdadera "
+             "misterio misterioso caso increíble increible".split())
+
+
+def _keys(text: str) -> set:
+    import re
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(text).lower()).encode("ascii", "ignore").decode()
+    return {w for w in re.findall(r"[a-z0-9]+", t) if len(w) > 2 and w not in _STOP}
+
+
+def is_repeat(data: dict, history: list) -> str:
+    """Devuelve el tema anterior si este guion repite uno ya publicado (mismo tema o casi las mismas palabras clave)."""
+    new = _keys(data.get("topic", ""))
+    if not new:
+        return ""
+    for h in history[-400:]:
+        old = _keys(h.get("topic", ""))
+        if old and (new == old or len(new & old) / len(new | old) >= 0.6
+                    or (len(old) >= 2 and old <= new) or (len(new) >= 2 and new <= old)):
+            return h.get("topic", "")
+    return ""
+
+
 def generate(history: list) -> dict:
-    """Escribe el guion y lo verifica; si el tema resulta falso o inventado, prueba con otro (hasta 3)."""
+    """Escribe el guion, comprueba que no repite tema y lo verifica; si falla, prueba con otro (hasta 4)."""
     avoid = []
-    for _ in range(3):
+    for _ in range(4):
         data = _draft(history, avoid)
+        rep = is_repeat(data, history)
+        if rep:
+            print(f"[guion] REPETIDO ('{data.get('topic')}' ya salió como '{rep}'); pido otro tema")
+            avoid.append(data.get("topic", ""))
+            continue
         if verify(data):
             return data
         avoid.append(data.get("topic", ""))
