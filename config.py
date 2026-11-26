@@ -48,16 +48,28 @@ CATEGORIES = [
 # Peso de cada temática al elegir (por defecto 1). Las historias de personas y engaños son las que más
 # visitas dan; la ciencia pura queda como minoría.
 CATEGORY_WEIGHTS = {
+    # lo que mejor funciona en el canal ("me gusta" en Instagram, nov 2026)
+    "videojuegos: secretos y curiosidades": 5,
+    "fútbol: anécdotas, récords y momentos legendarios": 5,
+    "costumbres y leyes rarísimas de otros países": 4,
+    "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)": 4,
+    "millonarios, dinero y fortunas absurdas": 4,
     "historia real tan loca que parece inventada": 3,
-    "¿por qué...? la explicación sorprendente de una costumbre, objeto o norma de todos los días": 3,
-    "oficios antiguos rarísimos que ya no existen": 3,
-    "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)": 3,
     "anécdota increíble de un famoso": 3,
-    "fútbol: anécdotas, récords y momentos legendarios": 3,
-    "récords Guinness absurdos": 2,
+    "¿por qué...? la explicación sorprendente de una costumbre, objeto o norma de todos los días": 3,
+    "oficios antiguos rarísimos que ya no existen": 2,
     "personaje histórico con una vida de película": 2,
-    "millonarios, dinero y fortunas absurdas": 2,
-    "videojuegos: secretos y curiosidades": 2,
+    "el origen sorprendente de una marca o empresa famosa": 2,
+    "cine y series: secretos de rodaje y curiosidades": 2,
+    # lo que peor funciona: sale muy de vez en cuando
+    "deporte: historias épicas y récords imposibles": 0.3,
+    "el espacio y el universo": 0.3,
+    "cuerpo humano y cerebro": 0.3,
+    "historia de Internet, memes y tecnología": 0.3,
+    "trucos y datos útiles para la vida diaria": 0.3,
+    "dato increíble de animales": 0.5,
+    "psicología: por qué hacemos lo que hacemos": 0.5,
+    "mitos que todo el mundo cree y son falsos": 0.5,
 }
 
 # Cada temática es una SERIE con nombre fijo y número de episodio (crea costumbre y seguidores)
