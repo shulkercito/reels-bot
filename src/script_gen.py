@@ -267,7 +267,7 @@ def hook_problem(data: dict) -> str:
     """Devuelve por qué el gancho es flojo (o "" si vale). Un gancho flojo = el vídeo muere en 2 segundos."""
     first = _str(data["scenes"][0].get("text")) if data.get("scenes") else ""
     ht = _str(data.get("hook_title")).lower()
-    if len(first.split()) > 9:
+    if len(first.split()) > 12:
         return f"la primera frase es larga ({len(first.split())} palabras): '{first}'"
     low = first.lower()
     for bad in ("en el año", "sabías que", "sabias que", "hoy te", "imagina", "hola"):
@@ -364,17 +364,22 @@ VERIFY_PROMPT = """Eres un verificador de datos muy estricto. Este guion de un v
 Revisa cada persona, lugar, fecha, cifra y suceso. Marca como problema cualquier cosa inventada, nombres que no
 existen, cifras exageradas o hechos que mezclan historias distintas. Las frases de humor u opinión no son problema.
 
+Texto que sale escrito en pantalla al empezar (gancho): "{hook_title}"
+
 Guion (tema: {topic}):
 {text}
 
 Si corriges la escena 0 (el gancho), la corrección debe seguir siendo un gancho: máximo 8 palabras, directa
 y chocante, con el dato real (nada de frases de contexto tipo "X empezó haciendo Y antes de Z").
+Si el texto en pantalla es falso o ya no cuadra con la escena 0, da uno nuevo en "hook_title" (3-6 palabras,
+la misma idea que la escena 0); si está bien, deja "hook_title" vacío.
 
 Devuelve SOLO JSON:
 {{"real": true/false (false SOLO si la persona o el suceso principal no existieron o la historia entera es falsa;
    una fecha, cifra o detalle equivocado NO es false: se arregla en "correcciones"),
   "problemas": ["..."],
-  "correcciones": [{{"escena": número empezando en 0, "texto": "frase corregida con el dato real"}}]}}"""
+  "correcciones": [{{"escena": número empezando en 0, "texto": "frase corregida con el dato real"}}],
+  "hook_title": ""}}"""
 
 
 def _chat(prompt: str, temperature=0.2) -> dict:
@@ -408,7 +413,7 @@ def verify(data: dict) -> bool:
     """Segunda pasada: otro "experto" revisa los datos. Corrige frases sueltas; si lo esencial es falso, False."""
     text = "\n".join(f"[{i}] {s['text']}" for i, s in enumerate(data["scenes"]))
     try:
-        res = _chat(VERIFY_PROMPT.format(topic=data.get("topic", ""), text=text))
+        res = _chat(VERIFY_PROMPT.format(topic=data.get("topic", ""), text=text, hook_title=data.get("hook_title", "")))
     except Exception as e:  # si el verificador no responde, no bloquea la publicación
         print(f"[verificación] no disponible ({e}); sigo sin ella")
         return True
@@ -417,6 +422,7 @@ def verify(data: dict) -> bool:
         print(f"[verificación] DESCARTADO: {'; '.join(probs)[:300]}")
         return False
     fixed = 0
+    first_before = data["scenes"][0]["text"]
     for c in res.get("correcciones") or []:
         try:
             i, t = int(c.get("escena")), _str(c.get("texto"))
@@ -425,6 +431,16 @@ def verify(data: dict) -> bool:
                 fixed += 1
         except Exception:
             pass
+    new_ht = _str(res.get("hook_title"))
+    if new_ht and 2 <= len(new_ht.split()) <= 7:
+        print(f"[verificación] texto del gancho corregido: '{data.get('hook_title')}' -> '{new_ht}'")
+        data["hook_title"] = new_ht
+        if data.get("hook_word", "").lower() not in new_ht.lower():
+            data["hook_word"] = ""
+    elif data["scenes"][0]["text"] != first_before:
+        # el gancho hablado ha cambiado y no hay texto nuevo para la pantalla: no se arriesga a que se contradigan
+        print("[verificación] el gancho hablado cambió y el de pantalla no cuadra; pido otro guion")
+        return False
     if hook_problem(data):  # la corrección ha dejado el gancho flojo: mejor otro guion
         print(f"[verificación] el gancho corregido quedó flojo ({hook_problem(data)}); pido otro guion")
         return False

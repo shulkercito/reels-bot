@@ -132,10 +132,11 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 
 # Duración del vídeo. Se prueban dos versiones y se comparan con "python -m tools.stats":
 #   "corto" -> ~25 s   |   "medio" -> ~40 s   |   "ab" -> alterna una y otra (por defecto)
-# La voz (Alvaro al +8%) va a unas 2,5 palabras por segundo (78 palabras = 31 s en la prueba del 28/11/2026).
+# La voz (Alvaro al +8%) va a unas 2,6-2,8 palabras por segundo (pruebas del 28/11/2026: 48 palabras = 19 s,
+# 78 = 31 s, 88 = 32 s, 131 = 47 s). Gemini suele quedarse algo corto, por eso el rango va un poco alto.
 DURATIONS = {
-    "corto": {"words": (56, 66), "scenes": (5, 7), "label": "~25 s"},
-    "medio": {"words": (92, 106), "scenes": (8, 11), "label": "~40 s"},
+    "corto": {"words": (62, 72), "scenes": (5, 7), "label": "~25 s"},
+    "medio": {"words": (102, 116), "scenes": (8, 11), "label": "~40 s"},
 }
 DURATION_MODE = (os.getenv("DURATION_MODE", "") or "ab").strip().lower()
 # valores por defecto (los usa el vídeo largo); main.py los cambia en cada Short según la duración elegida
