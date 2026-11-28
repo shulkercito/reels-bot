@@ -189,7 +189,7 @@ def _draft(history: list, avoid=()) -> dict:
         scene_rules=rules, scene_schema=schema.replace("{{", "{").replace("}}", "}"),
         wmin=config.TARGET_WORDS[0], wmax=config.TARGET_WORDS[1],
         smin=config.TARGET_SCENES[0], smax=config.TARGET_SCENES[1],
-        secs=f"unos {round(sum(config.TARGET_WORDS) / 2 / 3.2)} segundos",
+        secs=f"unos {round(sum(config.TARGET_WORDS) / 2 / 2.5)} segundos",
     )
     # Si un modelo está saturado (503/429) o no existe (404), prueba el siguiente.
     models = [config.LLM_MODEL]
