@@ -38,6 +38,25 @@ def yt_stats(ids):
     return out, chan, err
 
 
+def yt_public(ids):
+    """Plan B sin permisos: lee las visitas y la duración de la página pública de cada vídeo."""
+    import re
+    out = {}
+    for vid in ids:
+        try:
+            r = requests.get(f"https://www.youtube.com/watch?v={vid}", timeout=30,
+                             headers={"User-Agent": "Mozilla/5.0", "Accept-Language": "es-ES,es;q=0.9"})
+            v = re.search(r'"viewCount":"(\d+)"', r.text)
+            ln = re.search(r'"lengthSeconds":"(\d+)"', r.text)
+            lk = re.search(r'"likeCount":"(\d+)"', r.text) or re.search(r'"defaultText":\{"accessibility":\{"accessibilityData":\{"label":"([\d.,]+)', r.text)
+            if v:
+                out[vid] = {"views": int(v.group(1)), "seconds": int(ln.group(1)) if ln else None,
+                            "likes": int(re.sub(r"\D", "", lk.group(1))) if lk else None, "source": "public"}
+        except Exception as e:
+            print(f"[stats] {vid}: {e}")
+    return out
+
+
 def ig_stats(ids):
     from src import instagram
     if not (config.IG_USER_ID and config.IG_ACCESS_TOKEN):
@@ -69,7 +88,11 @@ def main():
     with open(config.HISTORY_FILE, encoding="utf-8") as f:
         history = json.load(f)
     hist = [h for h in history if h.get("youtube_id") or h.get("instagram_id")]
-    yt, chan, yerr = yt_stats([h["youtube_id"] for h in hist if h.get("youtube_id")])
+    yt_ids = [h["youtube_id"] for h in hist if h.get("youtube_id")]
+    yt, chan, yerr = yt_stats(yt_ids)
+    if not yt and yt_ids:  # el token de YouTube solo tiene permiso para subir: se leen las páginas públicas
+        yt = yt_public(yt_ids)
+        print(f"[stats] YouTube leído de las páginas públicas: {len(yt)}/{len(yt_ids)} vídeos")
     ig, acc, ierr = ig_stats([h["instagram_id"] for h in hist if h.get("instagram_id")])
     rows = []
     for h in hist:
