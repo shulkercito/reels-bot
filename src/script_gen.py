@@ -189,7 +189,7 @@ def _draft(history: list, avoid=()) -> dict:
         scene_rules=rules, scene_schema=schema.replace("{{", "{").replace("}}", "}"),
         wmin=config.TARGET_WORDS[0], wmax=config.TARGET_WORDS[1],
         smin=config.TARGET_SCENES[0], smax=config.TARGET_SCENES[1],
-        secs=f"unos {round(sum(config.TARGET_WORDS) / 2 / 2.6)} segundos",
+        secs=f"unos {round(sum(config.TARGET_WORDS) / 2 / 3.2)} segundos",
     )
     # Si un modelo está saturado (503/429) o no existe (404), prueba el siguiente.
     models = [config.LLM_MODEL]
@@ -228,7 +228,7 @@ def _draft(history: list, avoid=()) -> dict:
                 _fix_hook(data)
                 data["category"] = category
                 data["style"] = style
-                print(f"[guion] generado con {model} (estilo {style})")
+                print(f"[guion] generado con {model} (estilo {style}, {sum(len(x['text'].split()) for x in data['scenes'])} palabras)")
                 return data
             except LookupError as e:
                 last_err = e
@@ -267,7 +267,7 @@ def hook_problem(data: dict) -> str:
     """Devuelve por qué el gancho es flojo (o "" si vale). Un gancho flojo = el vídeo muere en 2 segundos."""
     first = _str(data["scenes"][0].get("text")) if data.get("scenes") else ""
     ht = _str(data.get("hook_title")).lower()
-    if len(first.split()) > 10:
+    if len(first.split()) > 9:
         return f"la primera frase es larga ({len(first.split())} palabras): '{first}'"
     low = first.lower()
     for bad in ("en el año", "sabías que", "sabias que", "hoy te", "imagina", "hola"):
@@ -285,7 +285,7 @@ def _validate(data: dict, style: str = "animado"):
     if any(not isinstance(s, dict) or not isinstance(s.get("text"), str) for s in scenes):
         raise ValueError("escena sin texto")
     words = sum(len(s["text"].split()) for s in scenes)
-    lo, hi = int(config.TARGET_WORDS[0] * 0.6), int(config.TARGET_WORDS[1] * 1.35)
+    lo, hi = int(config.TARGET_WORDS[0] * config.MIN_WORDS_FACTOR), int(config.TARGET_WORDS[1] * 1.35)
     if words < lo or words > hi:
         raise ValueError(f"longitud rara: {words} palabras")
     for s in scenes:
@@ -367,6 +367,9 @@ existen, cifras exageradas o hechos que mezclan historias distintas. Las frases 
 Guion (tema: {topic}):
 {text}
 
+Si corriges la escena 0 (el gancho), la corrección debe seguir siendo un gancho: máximo 8 palabras, directa
+y chocante, con el dato real (nada de frases de contexto tipo "X empezó haciendo Y antes de Z").
+
 Devuelve SOLO JSON:
 {{"real": true/false (false SOLO si la persona o el suceso principal no existieron o la historia entera es falsa;
    una fecha, cifra o detalle equivocado NO es false: se arregla en "correcciones"),
@@ -422,6 +425,9 @@ def verify(data: dict) -> bool:
                 fixed += 1
         except Exception:
             pass
+    if hook_problem(data):  # la corrección ha dejado el gancho flojo: mejor otro guion
+        print(f"[verificación] el gancho corregido quedó flojo ({hook_problem(data)}); pido otro guion")
+        return False
     print(f"[verificación] OK ({fixed} frases corregidas){': ' + '; '.join(probs)[:300] if probs else ''}")
     return True
 

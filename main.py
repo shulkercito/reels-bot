@@ -59,6 +59,7 @@ def pick_duration(history: list) -> str:
 def apply_duration(mode: str):
     d = config.DURATIONS[mode]
     config.TARGET_WORDS, config.TARGET_SCENES = d["words"], d["scenes"]
+    config.MIN_WORDS_FACTOR = 0.85  # que no salga mucho más corto de lo buscado
     print(f"[duración] versión {mode} ({d['label']}, {d['words'][0]}-{d['words'][1]} palabras)")
 
 

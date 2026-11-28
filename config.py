@@ -132,15 +132,16 @@ LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 
 # Duración del vídeo. Se prueban dos versiones y se comparan con "python -m tools.stats":
 #   "corto" -> ~25 s   |   "medio" -> ~40 s   |   "ab" -> alterna una y otra (por defecto)
-# La voz va a unas 2,6 palabras por segundo.
+# La voz (Alvaro al +8%) va a unas 3,2 palabras por segundo (medido en las pruebas del 28/11/2026).
 DURATIONS = {
-    "corto": {"words": (52, 66), "scenes": (5, 7), "label": "~25 s"},
-    "medio": {"words": (88, 108), "scenes": (8, 11), "label": "~40 s"},
+    "corto": {"words": (72, 85), "scenes": (6, 8), "label": "~25 s"},
+    "medio": {"words": (118, 135), "scenes": (9, 12), "label": "~40 s"},
 }
 DURATION_MODE = (os.getenv("DURATION_MODE", "") or "ab").strip().lower()
 # valores por defecto (los usa el vídeo largo); main.py los cambia en cada Short según la duración elegida
 TARGET_WORDS = (70, 95)
 TARGET_SCENES = (7, 10)
+MIN_WORDS_FACTOR = 0.6   # un guion con menos palabras que mínimo*factor se rechaza (los Shorts usan 0.85)
 
 # --- Imágenes (Pollinations, gratis) -----------------------------------------
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "flux")
