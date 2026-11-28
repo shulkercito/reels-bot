@@ -712,5 +712,18 @@
     "seconds": 30.9,
     "topic": "La increíble historia de cómo FedEx se salvó de la quiebra en un casino de Las Vegas",
     "title": "La apuesta que salvó a FedEx"
+  },
+  {
+    "date": "2026-11-28",
+    "category": "historia de Internet, memes y tecnología",
+    "style": "animado",
+    "series": "Historia de Internet",
+    "episode": 3,
+    "hook": "Jennifer Lopez inventó Google Imágenes",
+    "first_line": "¡Un vestido de J.Lo creó Google Imágenes!",
+    "duration_mode": "medio",
+    "seconds": 47.2,
+    "topic": "El origen de Google Imágenes gracias al vestido de Jennifer Lopez",
+    "title": "El vestido que creó Google Imágenes"
   }
 ]
