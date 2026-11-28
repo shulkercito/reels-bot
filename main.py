@@ -45,6 +45,23 @@ def assign_series(script: dict, history: list):
     script["series_label"] = f"{name} #{ep}"
 
 
+def pick_duration(history: list) -> str:
+    """Duración del vídeo: fija ("corto"/"medio") o, con "ab", la contraria a la del último vídeo publicado,
+    para comparar las dos con las estadísticas."""
+    mode = config.DURATION_MODE
+    if mode in config.DURATIONS:
+        return mode
+    published = [h for h in history if h.get("duration_mode") and (h.get("instagram_id") or h.get("youtube_id"))]
+    last = published[-1]["duration_mode"] if published else "medio"
+    return "corto" if last == "medio" else "medio"
+
+
+def apply_duration(mode: str):
+    d = config.DURATIONS[mode]
+    config.TARGET_WORDS, config.TARGET_SCENES = d["words"], d["scenes"]
+    print(f"[duración] versión {mode} ({d['label']}, {d['words'][0]}-{d['words'][1]} palabras)")
+
+
 def make_video(script: dict, work: str, demo=False) -> str:
     narration = " ".join(s["text"].strip() for s in script["scenes"])
     voice = f"{work}/voice.mp3"
@@ -76,9 +93,11 @@ def make_video(script: dict, work: str, demo=False) -> str:
     print(f"[montaje] {len(script['scenes'])} escenas, {total:.1f} s, estilo {style}…")
     if animated:
         render.render_animated(script["scenes"], durations, voice, ass, out, work,
-                               hook=script.get("hook_title", ""), series=(script.get("series_label") or "").upper())
+                               hook=script.get("hook_title", ""), hook_word=script.get("hook_word", ""),
+                               series=(script.get("series_label") or "").upper())
     else:
         render.render(images, durations, voice, ass, out, work, style=style)
+    script["seconds"] = round(total, 1)
     return out
 
 
@@ -97,8 +116,11 @@ def main():
         from tests.demo import DEMO_SCRIPT as script
     else:
         from src import script_gen
+        script_mode = pick_duration(history)
+        apply_duration(script_mode)
         print("[guion] generando…")
         script = script_gen.generate(history)
+        script["duration_mode"] = script_mode
     print(f"[guion] {script['category']} -> {script['topic']}")
 
     assign_series(script, history)
@@ -110,7 +132,8 @@ def main():
 
     entry = {"date": dt.date.today().isoformat(), "category": script["category"],
              "style": script.get("style"), "series": script.get("series"), "episode": script.get("episode"),
-             "hook": script.get("hook_title"),
+             "hook": script.get("hook_title"), "first_line": script["scenes"][0]["text"] if script.get("scenes") else "",
+             "duration_mode": script.get("duration_mode"), "seconds": script.get("seconds"),
              "topic": script["topic"], "title": script["title"]}
 
     publish = not args.no_publish and not args.demo and os.getenv("PUBLISH", "false").lower() == "true"

@@ -769,8 +769,9 @@ def _wrap(ctx, text, max_w):
     return lines
 
 
-def draw_hook(ctx, text, T, show=2.8):
-    """Gancho grande arriba, visible YA en el primer fotograma (sirve también de portada)."""
+def draw_hook(ctx, text, T, show=3.0, word=""):
+    """Gancho grande arriba, visible YA en el primer fotograma (sirve también de portada).
+    La palabra clave (el número o el nombre) va en rojo y el cartel entra con un pequeño "golpe"."""
     if not text or T > show:
         return
     out = ease_out((T - (show - 0.3)) / 0.3) if T > show - 0.3 else 0.0
@@ -779,19 +780,21 @@ def draw_hook(ctx, text, T, show=2.8):
         return
     ctx.save()
     ctx.select_font_face("DejaVu Sans", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-    size = 96
+    size = 112
     ctx.set_font_size(size)
-    lines = _wrap(ctx, text.upper(), 880)
-    while len(lines) > 3 and size > 60:
+    lines = _wrap(ctx, text.upper(), 900)
+    while len(lines) > 3 and size > 64:
         size -= 8
         ctx.set_font_size(size)
-        lines = _wrap(ctx, text.upper(), 880)
+        lines = _wrap(ctx, text.upper(), 900)
     lh = size * 1.12
     h = lh * len(lines) + 70
     w = min(max(ctx.text_extents(l).width for l in lines) + 90, 1000)
     cy = 400
-    pulse = 1 + 0.025 * math.sin(T * 6)
-    ctx.translate(W / 2, cy)
+    punch = 1 + 0.06 * math.exp(-T * 9) * math.cos(T * 22)   # golpe al empezar (ya legible en el fotograma 0)
+    pulse = punch + 0.025 * math.sin(T * 6)
+    shake = 8 * math.exp(-T * 6) * math.sin(T * 60)
+    ctx.translate(W / 2 + shake, cy)
     ctx.rotate(-0.025)
     ctx.scale(k * pulse, k * pulse)
     r = 34
@@ -807,12 +810,19 @@ def draw_hook(ctx, text, T, show=2.8):
     ctx.set_source_rgb(*INK)
     ctx.set_line_width(12)
     ctx.stroke()
+    key = re.sub(r"[^\w]", "", (word or "").upper())
+    space = ctx.text_extents("A A").x_advance - ctx.text_extents("AA").x_advance
     for n, line in enumerate(lines):
         e = ctx.text_extents(line)
-        ctx.move_to(-e.width / 2 - e.x_bearing, y0 + 35 + lh * n + lh * 0.78)
-        ctx.text_path(line)
-        ctx.set_source_rgb(*INK)
-        ctx.fill()
+        x = -e.width / 2 - e.x_bearing
+        y = y0 + 35 + lh * n + lh * 0.78
+        for wd in line.split(" "):
+            hot = key and re.sub(r"[^\w]", "", wd) == key
+            ctx.move_to(x, y)
+            ctx.text_path(wd)
+            ctx.set_source_rgb(0.9, 0.1, 0.15) if hot else ctx.set_source_rgb(*INK)
+            ctx.fill()
+            x += ctx.text_extents(wd).x_advance + space
     ctx.restore()
 
 
@@ -869,7 +879,7 @@ def draw_follow(ctx, series, T, total, show=2.2):
     ctx.restore()
 
 
-def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", series: str = ""):
+def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", series: str = "", hook_word: str = ""):
     """Dibuja todas las escenas y las codifica en un mp4 sin audio (transición deslizante)."""
     surf = cairo.ImageSurface(cairo.FORMAT_ARGB32, W, H)
     ctx = cairo.Context(surf)
@@ -889,7 +899,7 @@ def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", s
     if hook:  # mientras se ve el gancho, las escenas que empiezan antes no muestran su palabra clave
         start = 0.0
         for sc_, d_ in zip(scenes, durations):
-            if start < 2.8:
+            if start < 3.0:
                 sc_["_nokw"] = True
             start += d_
     def shot(c, j, tt, dd):
@@ -923,7 +933,7 @@ def render_silent(scenes: list, durations: list, out_mp4: str, hook: str = "", s
         else:
             shot(c, i, t, dur)
         draw_series(c, series)
-        draw_hook(c, hook, T)
+        draw_hook(c, hook, T, word=hook_word)
         draw_follow(c, series, T, total)
 
     total = sum(durations[:len(scenes)])

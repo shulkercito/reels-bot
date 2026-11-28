@@ -1,6 +1,6 @@
 # Reels Bot — vídeos animados automáticos para Instagram y YouTube Shorts
 
-Dos veces al día GitHub Actions genera un vídeo vertical de 40-55 s y lo publica solo:
+Dos veces al día GitHub Actions genera un vídeo vertical (alterna versiones de ~25 s y ~40 s para comparar cuál funciona mejor) y lo publica solo:
 
 1. **Guion** con IA (Gemini gratis): 25 temáticas organizadas en series con número de episodio, gancho inicial, sin repetir temas.
 2. **Voz** con `edge-tts` (gratis), con reintentos y voz de reserva.
@@ -24,7 +24,8 @@ Variables: `AUTO_PUBLISH` (`true` para publicar en las ejecuciones programadas),
 
 ## Ajustes rápidos
 - **Horas**: líneas `cron` de `.github/workflows/reel.yml` (en UTC).
-- **Temáticas y series**: `CATEGORIES` y `SERIES` en `config.py`.
+- **Temáticas y series**: `CATEGORIES`, `CATEGORY_WEIGHTS` y `SERIES` en `config.py`.
+- **Duración**: variable `DURATION_MODE` (`ab` alterna, `corto` ~25 s, `medio` ~40 s). Compara las dos con el workflow "Estadísticas".
 - **Voz**: `VOICES` en `config.py`. **Música**: mp3 sin copyright en `assets/music/`.
 
 ## Probar

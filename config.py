@@ -48,28 +48,38 @@ CATEGORIES = [
 # Peso de cada temática al elegir (por defecto 1). Las historias de personas y engaños son las que más
 # visitas dan; la ciencia pura queda como minoría.
 CATEGORY_WEIGHTS = {
-    # lo que mejor funciona en el canal ("me gusta" en Instagram, nov 2026)
-    "videojuegos: secretos y curiosidades": 5,
-    "fútbol: anécdotas, récords y momentos legendarios": 5,
-    "costumbres y leyes rarísimas de otros países": 4,
-    "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)": 4,
-    "millonarios, dinero y fortunas absurdas": 4,
-    "historia real tan loca que parece inventada": 3,
-    "anécdota increíble de un famoso": 3,
-    "¿por qué...? la explicación sorprendente de una costumbre, objeto o norma de todos los días": 3,
-    "oficios antiguos rarísimos que ya no existen": 2,
-    "personaje histórico con una vida de película": 2,
-    "el origen sorprendente de una marca o empresa famosa": 2,
+    # Revisado el 28/11/2026 con las estadísticas reales (likes de Instagram + visitas de YouTube, 47 Shorts).
+    # En YouTube todos se quedan en ~1.000 visitas (el problema es el gancho, no el tema); en Instagram sí
+    # hay diferencias claras: ganan las historias con algo que todo el mundo conoce (fútbol, videojuegos,
+    # países, timos) y pierden la ciencia, el deporte "épico" genérico y los trucos.
+    "fútbol: anécdotas, récords y momentos legendarios": 6,       # 93 likes (falso futbolista de la Premier)
+    "videojuegos: secretos y curiosidades": 6,                    # 80 likes (Creeper) + Especial GTA 22-46
+    "costumbres y leyes rarísimas de otros países": 6,            # 74 likes, el más visto en YouTube (1.395)
+    "estafa o golpe famoso (cómo lo hicieron y cómo los pillaron)": 5,  # 59, 36, 35
+    "oficios antiguos rarísimos que ya no existen": 4,            # 64 y 19
+    "historia real tan loca que parece inventada": 3,             # 59, 23, 21
+    "personaje histórico con una vida de película": 3,            # 68
+    "inventos y accidentes que cambiaron el mundo": 3,            # 44
+    "anécdota increíble de un famoso": 3,                         # 32
+    "el origen sorprendente de una marca o empresa famosa": 3,
+    "¿por qué...? la explicación sorprendente de una costumbre, objeto o norma de todos los días": 2,
+    "lugares extraños, prohibidos o abandonados del planeta": 2,  # 37
     "cine y series: secretos de rodaje y curiosidades": 2,
-    # lo que peor funciona: sale muy de vez en cuando
-    "deporte: historias épicas y récords imposibles": 0.3,
-    "el espacio y el universo": 0.3,
-    "cuerpo humano y cerebro": 0.3,
-    "historia de Internet, memes y tecnología": 0.3,
-    "trucos y datos útiles para la vida diaria": 0.3,
+    # flojos: salen muy de vez en cuando
+    "millonarios, dinero y fortunas absurdas": 0.7,               # 10 y 6
     "dato increíble de animales": 0.5,
-    "psicología: por qué hacemos lo que hacemos": 0.5,
-    "mitos que todo el mundo cree y son falsos": 0.5,
+    "récords Guinness absurdos": 0.5,                             # 21 y 3
+    "música: historias detrás de canciones y artistas": 0.5,
+    "comida: orígenes y curiosidades que no sabías": 0.5,
+    "misterio sin resolver": 0.5,
+    "qué pasaría si... (hipotético)": 0.3,
+    "psicología: por qué hacemos lo que hacemos": 0.3,
+    "mitos que todo el mundo cree y son falsos": 0.3,
+    "historia de Internet, memes y tecnología": 0.3,              # 24 y 4
+    "deporte: historias épicas y récords imposibles": 0.2,        # 2 y 2
+    "trucos y datos útiles para la vida diaria": 0.2,             # 5
+    "cuerpo humano y cerebro": 0.2,                               # 1 y 19
+    "el espacio y el universo": 0.2,                              # 3
 }
 
 # Cada temática es una SERIE con nombre fijo y número de episodio (crea costumbre y seguidores)
@@ -120,7 +130,17 @@ LLM_BASE_URL = os.getenv("LLM_BASE_URL", LLM_PRESETS[LLM_PROVIDER][0])
 LLM_MODEL = os.getenv("LLM_MODEL", LLM_PRESETS[LLM_PROVIDER][1])
 LLM_API_KEY = os.getenv("LLM_API_KEY", "")
 
-TARGET_WORDS = (70, 95)  # ~25-35 s: en Shorts/Reels cortos se ven enteros y se repiten más
+# Duración del vídeo. Se prueban dos versiones y se comparan con "python -m tools.stats":
+#   "corto" -> ~25 s   |   "medio" -> ~40 s   |   "ab" -> alterna una y otra (por defecto)
+# La voz va a unas 2,6 palabras por segundo.
+DURATIONS = {
+    "corto": {"words": (52, 66), "scenes": (5, 7), "label": "~25 s"},
+    "medio": {"words": (88, 108), "scenes": (8, 11), "label": "~40 s"},
+}
+DURATION_MODE = (os.getenv("DURATION_MODE", "") or "ab").strip().lower()
+# valores por defecto (los usa el vídeo largo); main.py los cambia en cada Short según la duración elegida
+TARGET_WORDS = (70, 95)
+TARGET_SCENES = (7, 10)
 
 # --- Imágenes (Pollinations, gratis) -----------------------------------------
 IMAGE_MODEL = os.getenv("IMAGE_MODEL", "flux")

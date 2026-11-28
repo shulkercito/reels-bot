@@ -14,15 +14,29 @@ PROMPT = """Eres guionista de vídeos virales cortos (Reels/TikTok) de {category
 Escribe UN vídeo en idioma "{lang}" sobre un tema concreto y verídico dentro de esa categoría.
 {extra}
 Reglas:
-- GANCHO: escribe 3 ganchos MUY distintos y elige el más potente. El gancho NO es una introducción: es el dato
-  más chocante de la historia soltado de golpe ("Este hombre vendió la Torre Eiffel. Dos veces.").
-  Prohibido empezar con contexto, fechas o "En el año...", "¿Sabías que...?", "Hoy te cuento...".
-  El elegido es la PRIMERA frase de la narración (menos de 10 palabras) y su versión corta va en pantalla desde el
-  primer segundo ("hook_title", máximo 6 palabras, que dé ganas de quedarse).
+- TEMA: tiene que encajar de verdad en la categoría "{category}" (no metas una historia de otra temática).
+  Mejor si sale algo que TODO EL MUNDO conoce (un futbolista, un videojuego, una marca, un país, un famoso):
+  lo conocido hace que la gente se pare al verlo. Nada de temas que haya que explicar antes de entenderlos.
+- GANCHO (lo más importante del vídeo: el 70% de la gente decide en 2 segundos si se queda):
+  escribe 5 ganchos MUY distintos, puntúa cada uno del 1 al 10 según lo imposible que es NO quedarse a mirar,
+  y usa el de más nota. El gancho NO es una introducción: es el dato más chocante de la historia soltado de golpe.
+  Un buen gancho tiene: algo CONCRETO (un nombre conocido, un número, un objeto) + una CONTRADICCIÓN o algo que
+  parece imposible. Ejemplos buenos: "Este hombre vendió la Torre Eiffel. Dos veces.", "Fueron 80 soldados y
+  volvieron 81.", "Un fallo de código creó al Creeper.", "En Francia te puedes casar con un muerto."
+  Ejemplos MALOS (prohibidos): "El oro olímpico más loco", "El trabajo más raro de la historia", "Una historia
+  increíble", "El tren de cinco estrellas": superlativos vagos que no dicen qué pasó.
+  Prohibido empezar con contexto, fechas o "En el año...", "¿Sabías que...?", "Hoy te cuento...", "Imagina...".
+  El elegido es la PRIMERA frase de la narración: MÁXIMO 8 palabras, que se diga en menos de 2 segundos.
+  "hook_title" es lo que sale escrito en pantalla desde el primer fotograma: la MISMA promesa en 3-6 palabras,
+  con el número o el nombre concreto (nada de "increíble", "loco", "raro", "más ... de la historia").
+  "hook_word" es UNA palabra de hook_title (el número, el nombre o la palabra más chocante), que se pinta en rojo.
+- La SEGUNDA frase (segundos 2-4) sube la apuesta o abre una pregunta ("Y lo peor es que funcionó.",
+  "Nadie sabe de dónde salió el 81."), nunca da contexto aburrido.
 - Si la categoría es de "¿por qué...?" u "oficios", el gancho es la PREGUNTA intrigante ("¿Por qué los aviones
   tienen ceniceros si no se puede fumar?", "Hubo gente que cobraba por despertarte a palos en la ventana") y la
   respuesta completa se guarda para el FINAL: da pistas por el camino, pero que nadie pueda irse antes de saberla.
-- VÍDEO CORTO: narración total entre {wmin} y {wmax} palabras (unos 30 segundos), frases muy cortas, sin emojis.
+- DURACIÓN: narración total entre {wmin} y {wmax} palabras ({secs}), frases muy cortas, sin emojis.
+  Ve al grano: si sobra una frase, quítala.
   Cada frase tiene que aportar algo nuevo: nada de relleno ni de repetir lo ya dicho.
 - Tono ENTRETENIDO y cercano, como un colega contándote un cotilleo increíble: con giros, humor y sorpresa.
   NO es una clase de ciencias: nada de tecnicismos ni explicaciones de libro si el tema no lo pide.
@@ -34,7 +48,7 @@ Reglas:
 - FINAL EN BUCLE: la última frase NO es una despedida ni pide comentar ni seguir; es una frase corta que enlaza
   con la primera, de modo que al repetirse el vídeo se lea seguido (ej. última: "Y todo empezó con una carta.",
   primera: "Este hombre vendió la Torre Eiffel..."). El "sígueme" ya sale escrito en pantalla al final.
-- Divide la narración en 7 a 10 escenas cortas (una frase o media frase cada una). El texto de las escenas, unido, es la narración completa.
+- Divide la narración en {smin} a {smax} escenas cortas (una frase o media frase cada una). El texto de las escenas, unido, es la narración completa.
 {scene_rules}
 - NO repitas ninguno de estos temas ya publicados: {history}
 
@@ -42,8 +56,9 @@ Devuelve SOLO JSON válido con esta forma:
 {{
   "topic": "tema concreto en pocas palabras",
   "title": "título corto",
-  "hooks": ["gancho 1", "gancho 2", "gancho 3"],
-  "hook_title": "texto corto en pantalla (máx. 6 palabras)",
+  "hooks": [{{"text": "gancho", "score": 1-10}}, "... (5 en total)"],
+  "hook_title": "texto en pantalla, 3-6 palabras, con el dato concreto",
+  "hook_word": "la palabra de hook_title que se pinta en rojo",
   "scenes": [{scene_schema}],
   "caption": "descripción de 1-2 frases con gancho; termina con una pregunta para que comenten o invitando a seguir la serie",
   "hashtags": ["#...", "..."]
@@ -173,6 +188,8 @@ def _draft(history: list, avoid=()) -> dict:
         extra=f"\nINDICACIONES ESPECIALES (obligatorias): {config.FORCE_NOTES}\n" if config.FORCE_NOTES else "",
         scene_rules=rules, scene_schema=schema.replace("{{", "{").replace("}}", "}"),
         wmin=config.TARGET_WORDS[0], wmax=config.TARGET_WORDS[1],
+        smin=config.TARGET_SCENES[0], smax=config.TARGET_SCENES[1],
+        secs=f"unos {round(sum(config.TARGET_WORDS) / 2 / 2.6)} segundos",
     )
     # Si un modelo está saturado (503/429) o no existe (404), prueba el siguiente.
     models = [config.LLM_MODEL]
@@ -238,16 +255,37 @@ def _fix_hook(data: dict):
     data["hashtags"] = [t for t in data["hashtags"] if isinstance(t, str)]
     words = h.split()
     data["hook_title"] = " ".join(words[:7])
+    hw = _str(data.get("hook_word")).strip("¡!¿?.,\"'")
+    data["hook_word"] = hw if hw and hw.lower() in data["hook_title"].lower() else ""
+
+
+VAGUE = ("increible", "increíble", "loco", "loca", "raro", "rara", "mas raro", "más raro", "de la historia",
+         "sorprendente", "misterio del", "el secreto", "no creeras", "no creerás", "sabias que", "sabías que")
+
+
+def hook_problem(data: dict) -> str:
+    """Devuelve por qué el gancho es flojo (o "" si vale). Un gancho flojo = el vídeo muere en 2 segundos."""
+    first = _str(data["scenes"][0].get("text")) if data.get("scenes") else ""
+    ht = _str(data.get("hook_title")).lower()
+    if len(first.split()) > 10:
+        return f"la primera frase es larga ({len(first.split())} palabras): '{first}'"
+    low = first.lower()
+    for bad in ("en el año", "sabías que", "sabias que", "hoy te", "imagina", "hola"):
+        if low.startswith(bad):
+            return f"la primera frase empieza con '{bad}'"
+    if not any(c.isdigit() for c in ht) and any(v in ht for v in VAGUE) and len(ht.split()) <= 5:
+        return f"el texto en pantalla es vago: '{data.get('hook_title')}'"
+    return ""
 
 
 def _validate(data: dict, style: str = "animado"):
     scenes = data.get("scenes") or []
-    if len(scenes) < 6:
+    if len(scenes) < max(4, config.TARGET_SCENES[0] - 1):
         raise ValueError("muy pocas escenas")
     if any(not isinstance(s, dict) or not isinstance(s.get("text"), str) for s in scenes):
         raise ValueError("escena sin texto")
     words = sum(len(s["text"].split()) for s in scenes)
-    lo, hi = max(45, int(config.TARGET_WORDS[0] * 0.5)), int(config.TARGET_WORDS[1] * 1.6)
+    lo, hi = int(config.TARGET_WORDS[0] * 0.6), int(config.TARGET_WORDS[1] * 1.35)
     if words < lo or words > hi:
         raise ValueError(f"longitud rara: {words} palabras")
     for s in scenes:
@@ -420,6 +458,11 @@ def generate(history: list) -> dict:
         rep = is_repeat(data, history)
         if rep:
             print(f"[guion] REPETIDO ('{data.get('topic')}' ya salió como '{rep}'); pido otro tema")
+            avoid.append(data.get("topic", ""))
+            continue
+        weak = hook_problem(data)
+        if weak and _ < 3:
+            print(f"[guion] GANCHO FLOJO ({weak}); pido otro guion")
             avoid.append(data.get("topic", ""))
             continue
         if verify(data):

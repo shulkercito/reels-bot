@@ -99,7 +99,16 @@ def main():
         y, i = yt.get(h.get("youtube_id"), {}), ig.get(h.get("instagram_id"), {})
         rows.append({"date": h.get("date"), "format": h.get("format", "short"), "series": h.get("series"),
                      "category": h.get("category"), "title": h.get("title"), "hook": h.get("hook"),
+                     "duration_mode": h.get("duration_mode"), "seconds": h.get("seconds"),
                      "yt": y, "ig": i})
+    # comparación de las dos duraciones (prueba A/B)
+    for mode in ("corto", "medio"):
+        vs = [r for r in rows if r.get("duration_mode") == mode]
+        if vs:
+            yv = [r["yt"]["views"] for r in vs if r["yt"].get("views") is not None]
+            il = [r["ig"]["like_count"] for r in vs if r["ig"].get("like_count") is not None]
+            avg = lambda x: round(sum(x) / len(x)) if x else "-"
+            print(f"DURACIÓN {mode}: {len(vs)} vídeos | YouTube media {avg(yv)} visitas | Instagram media {avg(il)} likes")
     print("CANAL YT:", json.dumps(chan), "| CUENTA IG:", json.dumps(acc))
     print("AVISOS:", yerr, "|", ierr)
     print("STATS_JSON_START")
