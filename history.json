@@ -699,5 +699,18 @@
     "seconds": 18.2,
     "topic": "El origen de la marca de juguetes Lego y el significado de su nombre",
     "title": "El origen secreto de Lego"
+  },
+  {
+    "date": "2026-11-28",
+    "category": "anécdota increíble de un famoso",
+    "style": "animado",
+    "series": "Famosos al desnudo",
+    "episode": 2,
+    "hook": "FedEx se salvó en el casino",
+    "first_line": "FedEx se salvó jugando al blackjack.",
+    "duration_mode": "corto",
+    "seconds": 30.9,
+    "topic": "La increíble historia de cómo FedEx se salvó de la quiebra en un casino de Las Vegas",
+    "title": "La apuesta que salvó a FedEx"
   }
 ]
