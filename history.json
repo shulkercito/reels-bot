@@ -738,5 +738,18 @@
     "seconds": 18.9,
     "topic": "Por qué las bodas llevan anillos en el dedo anular",
     "title": "El misterio del dedo anular"
+  },
+  {
+    "date": "2026-11-28",
+    "category": "videojuegos: secretos y curiosidades",
+    "style": "animado",
+    "series": "Secretos gamer",
+    "episode": 3,
+    "hook": "Un fallo de código añadió el champiñón",
+    "first_line": "¡El champiñón de Mario nació por un error!",
+    "duration_mode": "medio",
+    "seconds": 32.4,
+    "topic": "El origen de la salud en Mario Bros gracias a un error de programación",
+    "title": "La barra de vida secreta de Mario"
   }
 ]
